@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Voice Train Booking{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-train me-2"></i>Voice Train Booking
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">Home</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.search') }}">Search Trains</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('voice.voice_interface') }}">
+                            <i class="fas fa-microphone me-1"></i>Voice Assistant
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.booking_history') }}">My Bookings</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.pnr_status') }}">PNR Status</a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>{{ current_user.first_name }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.voice_preferences') }}">Voice Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Voice Train Booking</h5>
+                    <p class="text-muted">Book your train tickets with the power of voice commands.</p>
+                </div>
+                <div class="col-md-3">
+                    <h6>Quick Links</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('main.search') }}" class="text-decoration-none">Search Trains</a></li>
+                        <li><a href="{{ url_for('main.pnr_status') }}" class="text-decoration-none">PNR Status</a></li>
+                        <li><a href="#" class="text-decoration-none">Help</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Voice Features</h6>
+                    <ul class="list-unstyled">
+                        <li>Voice Search</li>
+                        <li>Hands-free Booking</li>
+                        <li>Status Updates</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p class="text-muted mb-0">&copy; 2026 Voice Train Booking Platform. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating Voice Command Button -->
+    {% if current_user.is_authenticated %}
+    <div id="voiceWidgetContainer">
+        <!-- Floating Button -->
+        <button id="voiceWidgetBtn" class="voice-widget-btn" title="Voice Commands (Ctrl+Space)">
+            <i class="fas fa-microphone-alt"></i>
+        </button>
+        
+        <!-- Offcanvas Voice Panel -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="voiceOffcanvas" aria-labelledby="voiceOffcanvasLabel">
+            <div class="offcanvas-header bg-primary text-white">
+                <h5 class="offcanvas-title" id="voiceOffcanvasLabel">
+                    <i class="fas fa-microphone-alt me-2"></i>Sarah - Voice Assistant
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0">
+                <div id="voiceWidgetContent" class="voice-widget-content">
+                    <!-- Microphone Button -->
+                    <div class="voice-widget-controls p-3 border-bottom">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <button id="voiceWidgetMicBtn" class="btn btn-primary btn-lg flex-grow-1" type="button">
+                                <i id="voiceWidgetMicIcon" class="fas fa-microphone"></i>
+                                <span id="voiceWidgetMicText">Start</span>
+                            </button>
+                            <div id="voiceWidgetStatus" class="badge bg-secondary ms-2">Ready</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recognition Display -->
+                    <div class="p-3 border-bottom">
+                        <small class="text-muted d-block mb-2">You said:</small>
+                        <div id="voiceWidgetCommand" class="voice-widget-command">
+                            <em class="text-muted">Listening...</em>
+                        </div>
+                    </div>
+                    
+                    <!-- Response Display -->
+                    <div class="p-3 flex-grow-1 overflow-auto" style="max-height: 400px;">
+                        <small class="text-muted d-block mb-2">Assistant:</small>
+                        <div id="voiceWidgetResponse" class="voice-widget-response">
+                            <em class="text-muted">Responses will appear here...</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/voice-widget.js') }}"></script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

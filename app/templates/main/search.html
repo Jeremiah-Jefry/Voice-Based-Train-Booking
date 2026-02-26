@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Search Trains - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1 class="mb-4">Search Trains</h1>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a href="{{ url_for('main.all_trains') }}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-2"></i>View All Trains & Schedules
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form id="searchForm" method="POST" action="{{ url_for('main.search_trains_endpoint') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="source" class="form-label fw-bold">From (Station)</label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="source" 
+                                       name="source"
+                                       list="sourceSuggestions"
+                                       placeholder="e.g., Mumbai" 
+                                       required>
+                                <datalist id="sourceSuggestions"></datalist>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="destination" class="form-label fw-bold">To (Station)</label>
+                                <input type="text" 
+                                       class="form-control form-control-lg" 
+                                       id="destination" 
+                                       name="destination"
+                                       list="destSuggestions"
+                                       placeholder="e.g., Delhi" 
+                                       required>
+                                <datalist id="destSuggestions"></datalist>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="travel_date" class="form-label fw-bold">Travel Date</label>
+                                <input type="date" class="form-control form-control-lg" id="travel_date" name="travel_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="train_class" class="form-label fw-bold">Class</label>
+                                <select class="form-select form-select-lg" id="train_class" name="train_class">
+                                    <option value="sleeper">Sleeper</option>
+                                    <option value="ac_3">AC 3-Tier</option>
+                                    <option value="ac_2">AC 2-Tier</option>
+                                    <option value="ac_1">AC 1-Tier</option>
+                                    <option value="chair_car">Chair Car</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary btn-lg" onclick="searchTrains()">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="resultsContainer" class="mt-4"></div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">Popular Routes</h5>
+                    <div class="list-group list-group-flush">
+                        <a href="javascript:quickSearch('Mumbai', 'Delhi')" class="list-group-item list-group-item-action list-group-item-light">
+                            <small>Mumbai → Delhi</small>
+                        </a>
+                        <a href="javascript:quickSearch('Mumbai', 'Bangalore')" class="list-group-item list-group-item-action list-group-item-light">
+                            <small>Mumbai → Bangalore</small>
+                        </a>
+                        <a href="javascript:quickSearch('Delhi', 'Kolkata')" class="list-group-item list-group-item-action list-group-item-light">
+                            <small>Delhi → Kolkata</small>
+                        </a>
+                        <a href="javascript:quickSearch('Chennai', 'Delhi')" class="list-group-item list-group-item-action list-group-item-light">
+                            <small>Chennai → Delhi</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-light mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">Tips</h5>
+                    <ul class="small">
+                        <li>Use station names or codes</li>
+                        <li>Select your preferred class</li>
+                        <li>Choose a date at least 1 day ahead</li>
+                        <li>Prices vary by class and distance</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allStations = [];
+
+// Load all stations on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadStations();
+    document.getElementById('travel_date').min = new Date().toISOString().split('T')[0];
+});
+
+function loadStations() {
+    fetch('{{ url_for("main.get_stations") }}')
+        .then(response => response.json())
+        .then(data => {
+            allStations = data.stations;
+            populateDatalist();
+        })
+        .catch(error => console.error('Error loading stations:', error));
+}
+
+function populateDatalist() {
+    const sourceList = document.getElementById('sourceSuggestions');
+    const destList = document.getElementById('destSuggestions');
+    
+    sourceList.innerHTML = '';
+    destList.innerHTML = '';
+    
+    allStations.forEach(station => {
+        const option1 = document.createElement('option');
+        option1.value = station.station_name + ' (' + station.station_code + ')';
+        option1.label = station.city;
+        sourceList.appendChild(option1);
+        
+        const option2 = document.createElement('option');
+        option2.value = station.station_name + ' (' + station.station_code + ')';
+        option2.label = station.city;
+        destList.appendChild(option2);
+    });
+}
+
+function quickSearch(source, dest) {
+    document.getElementById('source').value = source;
+    document.getElementById('destination').value = dest;
+    searchTrains();
+}
+
+function searchTrains() {
+    const form = document.getElementById('searchForm');
+    const source = document.getElementById('source').value;
+    const destination = document.getElementById('destination').value;
+    const travel_date = document.getElementById('travel_date').value;
+    const train_class = document.getElementById('train_class').value;
+
+    if (!source || !destination || !travel_date) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    const resultsContainer = document.getElementById('resultsContainer');
+    resultsContainer.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+    fetch('{{ url_for("main.search_trains_endpoint") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source, destination, travel_date, train_class})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.trains && data.trains.length > 0) {
+            let html = '<h4>Available Trains</h4><div class="row">';
+            data.trains.forEach(train => {
+                const bookingUrl = `/book/${train.schedule_id}?date=${travel_date}&class=${train_class}`;
+                html += `
+                    <div class="col-12 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6>${train.train_number} - ${train.train_name}</h6>
+                                        <small class="text-muted">${train.departure_time} → ${train.arrival_time} (${train.duration})</small>
+                                        <p class="mb-0 mt-2">
+                                            <strong>₹${train.price.toFixed(2)}</strong> | 
+                                            <span class="badge bg-success">${train.available_seats} seats</span>
+                                        </p>
+                                    </div>
+                                    <a href="${bookingUrl}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-ticket-alt me-1"></i>Book Now
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsContainer.innerHTML = html;
+        } else {
+            resultsContainer.innerHTML = '<div class="alert alert-info">No trains found. Try different stations or date.</div>';
+        }
+    })
+    .catch(error => {
+        resultsContainer.innerHTML = '<div class="alert alert-danger">Error searching trains: ' + error + '</div>';
+    });
+}
+
+</script>
+{% endblock %}

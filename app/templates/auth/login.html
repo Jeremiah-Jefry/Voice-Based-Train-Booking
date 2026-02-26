@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="card border-0 shadow">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="mb-0">
+                        <i class="fas fa-train me-2"></i>
+                        Login
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label fw-bold">Username</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="username" 
+                                   name="username" 
+                                   placeholder="Enter username"
+                                   required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label fw-bold">Password</label>
+                            <div class="input-group input-group-lg">
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="password" 
+                                       name="password" 
+                                       placeholder="Enter password"
+                                       required>
+                                <button type="button" 
+                                        class="btn btn-outline-secondary" 
+                                        onclick="togglePassword()">
+                                    <i id="toggleIcon" class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                                Sign In
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="text-muted mb-0">
+                            Don't have an account? 
+                            <a href="{{ url_for('auth.register') }}" class="fw-bold text-primary">
+                                Register here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.className = 'fas fa-eye';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">My Profile</h1>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Full Name</label>
+                        <p class="form-control-plaintext">{{ current_user.first_name }} {{ current_user.last_name }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Username</label>
+                        <p class="form-control-plaintext">{{ current_user.username }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Email</label>
+                        <p class="form-control-plaintext">{{ current_user.email }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Phone</label>
+                        <p class="form-control-plaintext">{{ current_user.phone }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Member Since</label>
+                        <p class="form-control-plaintext">{{ current_user.created_at[:10] if current_user.created_at else 'N/A' }}</p>
+                    </div>
+
+                    <hrs>
+
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Account Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('auth.voice_preferences') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-microphone me-2"></i>Voice Settings</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-lock me-2"></i>Change Password</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-bell me-2"></i>Notifications</span>
+                                <i class="fas fa-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-3">Danger Zone</h6>
+                    <button class="btn btn-outline-danger w-100">
+                        <i class="fas fa-trash-alt me-2"></i>Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

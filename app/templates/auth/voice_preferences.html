@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Settings - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Voice Settings</h1>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Customize Your Voice Experience</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="voice_enabled" name="voice_enabled" 
+                                       {% if current_user.voice_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="voice_enabled">
+                                    <strong>Enable Voice Features</strong>
+                                    <small class="d-block text-muted">Allow voice commands for booking and searching</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-3">
+                            <label for="preferred_language" class="form-label fw-bold">Preferred Language</label>
+                            <select class="form-select" id="preferred_language" name="preferred_language">
+                                <option value="en-IN" {% if current_user.preferred_language == 'en-IN' %}selected{% endif %}>English (India)</option>
+                                <option value="hi-IN" {% if current_user.preferred_language == 'hi-IN' %}selected{% endif %}>Hindi</option>
+                                <option value="en-US" {% if current_user.preferred_language == 'en-US' %}selected{% endif %}>English (US)</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">Language for voice recognition and responses</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="voice_speed" class="form-label fw-bold">Speech Speed</label>
+                            <input type="range" class="form-range" id="voice_speed" name="voice_speed" 
+                                   min="0.5" max="2" step="0.1" value="1.0">
+                            <small class="text-muted d-block mt-1">
+                                <span id="speedLabel">Normal (1.0x)</span> - Adjust speech playback speed
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-lg btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                            <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">Back to Profile</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5>Voice Commands Guide</h5>
+                    <p class="small"><strong>Try saying:</strong></p>
+                    <ul class="small">
+                        <li>"Search trains from Mumbai to Delhi"</li>
+                        <li>"Book a ticket for tomorrow"</li>
+                        <li>"Check my PNR status"</li>
+                        <li>"Show my bookings"</li>
+                        <li>"Cancel my booking"</li>
+                        <li>"Help" or "What can you do"</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3 bg-light">
+                <div class="card-body">
+                    <h5>Tips</h5>
+                    <ul class="small">
+                        <li>Speak clearly and naturally</li>
+                        <li>Make sure microphone is enabled</li>
+                        <li>Check your browser settings</li>
+                        <li>Better results in quiet environment</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('voice_speed').addEventListener('input', function() {
+    const speedLabel = document.getElementById('speedLabel');
+    const speed = parseFloat(this.value);
+    speedLabel.textContent = 'Speed: ' + speed.toFixed(1) + 'x';
+});
+</script>
+{% endblock %}

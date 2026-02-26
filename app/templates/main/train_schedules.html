@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}All Trains & Schedules - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1 class="mb-2">All Trains & Schedules</h1>
+            <p class="text-muted">Browse complete schedule information for all available trains</p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a href="{{ url_for('main.search') }}" class="btn btn-outline-primary">
+                <i class="fas fa-search me-2"></i>Search Trains
+            </a>
+        </div>
+    </div>
+
+    {% if trains %}
+    <div class="row">
+        <div class="col-lg-3">
+            <!-- Filter Sidebar -->
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h5 class="card-title">Filters</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Train Type</label>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type" type="checkbox" value="Express" id="type_express" checked>
+                            <label class="form-check-label" for="type_express">Express</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type" type="checkbox" value="Superfast" id="type_superfast" checked>
+                            <label class="form-check-label" for="type_superfast">Superfast</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type" type="checkbox" value="Rajdhani" id="type_rajdhani" checked>
+                            <label class="form-check-label" for="type_rajdhani">Rajdhani</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-type" type="checkbox" value="Shatabdi" id="type_shatabdi" checked>
+                            <label class="form-check-label" for="type_shatabdi">Shatabdi</label>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Classes Available</label>
+                        <div class="form-check">
+                            <input class="form-check-input filter-class" type="checkbox" value="ac_1" id="class_ac1" checked>
+                            <label class="form-check-label" for="class_ac1">AC 1-Tier</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-class" type="checkbox" value="ac_2" id="class_ac2" checked>
+                            <label class="form-check-label" for="class_ac2">AC 2-Tier</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-class" type="checkbox" value="ac_3" id="class_ac3" checked>
+                            <label class="form-check-label" for="class_ac3">AC 3-Tier</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input filter-class" type="checkbox" value="sleeper" id="class_sleeper" checked>
+                            <label class="form-check-label" for="class_sleeper">Sleeper</label>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">Reset Filters</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <!-- Train Cards -->
+            <div id="trainsContainer">
+                {% for train in trains %}
+                <div class="train-card mb-4" data-train-type="{{ train.train_type }}">
+                    <div class="card">
+                        <div class="card-header bg-blue text-white">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h5 class="mb-0">{{ train.train_number }}</h5>
+                                    <small>{{ train.train_name }}</small>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <span class="badge bg-info">{{ train.train_type }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <!-- Schedules Table -->
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Route</th>
+                                            <th>Departure</th>
+                                            <th>Arrival</th>
+                                            <th>Distance</th>
+                                            <th>Days</th>
+                                            <th colspan="5" class="text-center">Prices</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for schedule in train.schedules %}
+                                        <tr class="schedule-row" data-classes="{% if schedule.has_ac_1 %}ac_1{% endif %} {% if schedule.has_ac_2 %}ac_2{% endif %} {% if schedule.has_ac_3 %}ac_3{% endif %} {% if schedule.has_sleeper %}sleeper{% endif %}">
+                                            <td>
+                                                <strong>{{ schedule.source_code }}</strong> → <strong>{{ schedule.dest_code }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ schedule.source_name }} - {{ schedule.dest_name }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ schedule.departure_time }}</strong>
+                                            </td>
+                                            <td>
+                                                <strong>{{ schedule.arrival_time }}</strong>
+                                            </td>
+                                            <td>
+                                                <small>{{ schedule.distance_km }} km</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ schedule.journey_days or 'Daily' }}</small>
+                                            </td>
+                                            <td class="text-center">
+                                                {% if schedule.has_ac_1 %}
+                                                    <span class="badge bg-success">₹{{ schedule.price_ac_1 }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if schedule.has_ac_2 %}
+                                                    <span class="badge bg-success">₹{{ schedule.price_ac_2 }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if schedule.has_ac_3 %}
+                                                    <span class="badge bg-success">₹{{ schedule.price_ac_3 }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if schedule.has_sleeper %}
+                                                    <span class="badge bg-info">₹{{ schedule.price_sleeper }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if schedule.has_chair_car %}
+                                                    <span class="badge bg-light text-dark">₹{{ schedule.price_chair_car }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="{{ url_for('main.search') }}?from={{ schedule.source_name }}&to={{ schedule.dest_name }}" class="btn btn-sm btn-primary">Book</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Capacity Information -->
+                            <div class="mt-3 pt-3 border-top">
+                                <small class="text-muted">
+                                    <strong>Available Seats:</strong> 
+                                    {% for schedule in train.schedules %}
+                                        {% if loop.first %}
+                                            AC 1: {{ schedule.capacity_ac_1 }} | AC 2: {{ schedule.capacity_ac_2 }} | AC 3: {{ schedule.capacity_ac_3 }} | Sleeper: {{ schedule.capacity_sleeper }}
+                                        {% endif %}
+                                    {% endfor %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No train schedules available at the moment.
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-blue {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.train-card {
+    transition: transform 0.2s;
+}
+
+.train-card:hover {
+    transform: translateY(-2px);
+}
+
+.schedule-row:hover {
+    background-color: #f8f9fa;
+}
+
+.table-sm th {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-sm td {
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 992px) {
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    .sticky-top {
+        position: static !important;
+    }
+}
+</style>
+
+<script>
+// Filter functionality
+function applyFilters() {
+    const selectedTypes = Array.from(document.querySelectorAll('.filter-type:checked')).map(el => el.value);
+    const selectedClasses = Array.from(document.querySelectorAll('.filter-class:checked')).map(el => el.value);
+    
+    document.querySelectorAll('.train-card').forEach(card => {
+        const trainType = card.getAttribute('data-train-type');
+        const typeMatch = selectedTypes.length === 0 || selectedTypes.includes(trainType);
+        
+        // Check if any schedule has the selected classes
+        const schedules = card.querySelectorAll('.schedule-row');
+        let classMatch = true;
+        if (selectedClasses.length > 0) {
+            classMatch = false;
+            schedules.forEach(row => {
+                const classes = row.getAttribute('data-classes').split(' ').filter(c => c);
+                const hasClass = selectedClasses.some(cls => classes.includes(cls));
+                if (hasClass) classMatch = true;
+                row.style.display = hasClass ? '' : 'none';
+            });
+        } else {
+            schedules.forEach(row => row.style.display = '');
+        }
+        
+        // Show/hide card based on filters
+        card.style.display = typeMatch && classMatch ? '' : 'none';
+    });
+}
+
+function resetFilters() {
+    document.querySelectorAll('.filter-type, .filter-class').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    applyFilters();
+}
+
+// Add event listeners to filters
+document.querySelectorAll('.filter-type, .filter-class').forEach(checkbox => {
+    checkbox.addEventListener('change', applyFilters);
+});
+</script>
+
+{% endblock %}

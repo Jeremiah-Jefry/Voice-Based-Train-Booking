@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Assistant - Voice Train Booking{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/voice.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Voice Interface Header -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <h1 class="h3 mb-3">
+                        <i class="fas fa-microphone-alt text-primary me-2"></i>
+                        Sarah - Voice Assistant
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Click the microphone and speak. Try: <strong>"trains from Mumbai to Delhi"</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Voice Status Panel -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <!-- Microphone Button -->
+                            <div class="d-flex align-items-center">
+                                <button id="voiceBtn" class="btn btn-primary btn-lg me-3" type="button">
+                                    <i id="voiceIcon" class="fas fa-microphone"></i>
+                                    <span id="voiceText">Start Listening</span>
+                                </button>
+                                
+                                <div id="voiceStatus" class="voice-status">
+                                    <span class="badge bg-secondary">Ready</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <!-- Volume Indicator -->
+                            <div class="d-flex align-items-center justify-content-md-end mt-3 mt-md-0">
+                                <small class="text-muted me-2">Voice Level:</small>
+                                <div id="volumeIndicator" class="volume-indicator">
+                                    <div class="volume-bar"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Recognition Display -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-comment-dots me-2"></i>
+                        Voice Recognition
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Interim Results -->
+                    <div id="interimResults" class="voice-interim mb-2">
+                        <em class="text-muted">Your speech will appear here in real-time...</em>
+                    </div>
+                    
+                    <!-- Final Command -->
+                    <div id="finalCommand" class="voice-command">
+                        <strong>Last Command:</strong> <span class="text-primary">None</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assistant Response -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-robot me-2"></i>
+                        Assistant Response
+                    </h5>
+                    <button id="speakBtn" class="btn btn-sm btn-outline-primary" disabled>
+                        <i class="fas fa-volume-up me-1"></i>Speak Response
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="assistantResponse" class="assistant-response">
+                        <em class="text-muted">Assistant responses will appear here...</em>
+                    </div>
+                    
+                    <!-- Action Results -->
+                    <div id="actionResults" class="action-results mt-3" style="display: none;">
+                        <!-- Dynamic content for search results, PNR status, etc. -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Commands Help -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Voice Commands
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Train Search</h6>
+                            <ul class="list-unstyled text-sm">
+                                <li><code>"Search trains from Mumbai to Delhi"</code></li>
+                                <li><code>"Find trains Mumbai to Delhi tomorrow"</code></li>
+                                <li><code>"Book train from Chennai to Bangalore"</code></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">PNR & Bookings</h6>
+                            <ul class="list-unstyled text-sm">
+                                <li><code>"Check PNR status 1234567890"</code></li>
+                                <li><code>"Show my bookings"</code></li>
+                                <li><code>"Booking history"</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/voice.js') }}"></script>
+<script>
+    // Initialize voice interface when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof VoiceInterface !== 'undefined') {
+            const voiceInterface = new VoiceInterface({
+                apiEndpoint: "{{ url_for('voice.process_voice_command') }}",
+                language: "{{ current_user.preferred_language or 'en-IN' }}",
+                continuous: true,
+                interimResults: true
+            });
+            
+            voiceInterface.initialize();
+        } else {
+            console.error('VoiceInterface not loaded');
+        }
+    });
+</script>
+{% endblock %}

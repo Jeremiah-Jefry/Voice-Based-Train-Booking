@@ -1,0 +1,183 @@
+/* Voice Interface Specific Styles */
+
+.voice-interface {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Microphone Button States */
+.btn-voice {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-voice.listening {
+    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    animation: voice-pulse 2s infinite;
+}
+
+.btn-voice.processing {
+    background: linear-gradient(45deg, #ffc107, #fd7e14);
+}
+
+@keyframes voice-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+}
+
+/* Voice Visualization */
+.voice-waves {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 1rem;
+}
+
+.voice-wave {
+    width: 3px;
+    height: 20px;
+    background: var(--primary-color);
+    border-radius: 2px;
+    animation: wave 1.5s infinite;
+}
+
+.voice-wave:nth-child(2) { animation-delay: 0.1s; }
+.voice-wave:nth-child(3) { animation-delay: 0.2s; }
+.voice-wave:nth-child(4) { animation-delay: 0.3s; }
+.voice-wave:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes wave {
+    0%, 40%, 100% { transform: scaleY(0.4); }
+    20% { transform: scaleY(1); }
+}
+
+/* Command Display */
+.command-display {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.interim-text {
+    opacity: 0.7;
+    font-style: italic;
+    color: #e3f2fd;
+}
+
+.final-text {
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+/* Response Area */
+.response-area {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+/* Accessibility Enhancements */
+.voice-status-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.status-ready .voice-status-icon {
+    background: #28a745;
+    animation: ready-pulse 2s infinite;
+}
+
+.status-listening .voice-status-icon {
+    background: #dc3545;
+    animation: listening-pulse 1s infinite;
+}
+
+.status-processing .voice-status-icon {
+    background: #ffc107;
+    animation: processing-spin 1s linear infinite;
+}
+
+@keyframes ready-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes listening-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+@keyframes processing-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .voice-controls {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .btn-voice {
+        width: 100%;
+        max-width: 280px;
+    }
+    
+    .command-display, .response-area {
+        margin: 1rem -15px;
+        border-radius: 0;
+    }
+    
+    .voice-waves {
+        justify-content: center;
+        margin: 1rem 0;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .command-display {
+        background: #000;
+        border: 2px solid #fff;
+    }
+    
+    .response-area {
+        background: #000;
+        border: 2px solid #0f0;
+    }
+    
+    .btn-voice {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .voice-pulse,
+    .voice-wave,
+    .voice-status-icon {
+        animation: none;
+        transition: none;
+    }
+}

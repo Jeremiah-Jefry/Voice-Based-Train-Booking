@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Voice Train Booking{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    Book Train Tickets with <span class="text-warning">Voice Commands</span>
+                </h1>
+                <p class="lead mb-4">
+                    Experience the future of train booking with our revolutionary voice-enabled platform. 
+                    Search trains, check availability, and book tickets just by speaking!
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('voice.voice_interface') }}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-microphone me-2"></i>Try Voice Booking
+                    </a>
+                    <a href="{{ url_for('main.search') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-search me-2"></i>Search Trains
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="position-relative">
+                    <i class="fas fa-train display-1 text-warning opacity-75"></i>
+                    <div class="position-absolute top-50 start-50 translate-middle">
+                        <div class="btn btn-light btn-lg rounded-circle shadow">
+                            <i class="fas fa-microphone text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5 h1">Why Choose Voice Train Booking?</h2>
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-primary btn-lg rounded-circle mb-3">
+                            <i class="fas fa-microphone-alt"></i>
+                        </div>
+                        <h5 class="card-title">Voice Commands</h5>
+                        <p class="card-text text-muted">
+                            Simply speak your travel requirements and let our AI assistant 
+                            find the perfect trains for you.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-success btn-lg rounded-circle mb-3">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h5 class="card-title">Lightning Fast</h5>
+                        <p class="card-text text-muted">
+                            Book tickets in seconds with our streamlined voice interface. 
+                            No more clicking through multiple pages.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-warning btn-lg rounded-circle mb-3">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5 class="card-title">Secure Booking</h5>
+                        <p class="card-text text-muted">
+                            Integrated with reliable systems for secure and 
+                            reliable train ticket bookings.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-info btn-lg rounded-circle mb-3">
+                            <i class="fas fa-universal-access"></i>
+                        </div>
+                        <h5 class="card-title">Accessible</h5>
+                        <p class="card-text text-muted">
+                            Perfect for users with mobility challenges or those who 
+                            prefer hands-free interaction.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-lg rounded-circle mb-3" style="background-color: #6f42c1; border-color: #6f42c1; color: white;">
+                            <i class="fas fa-language"></i>
+                        </div>
+                        <h5 class="card-title">Multi-Language</h5>
+                        <p class="card-text text-muted">
+                            Supports multiple Indian languages for a comfortable 
+                            booking experience in your preferred language.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm text-center">
+                    <div class="card-body p-4">
+                        <div class="btn btn-dark btn-lg rounded-circle mb-3">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <h5 class="card-title">Mobile Friendly</h5>
+                        <p class="card-text text-muted">
+                            Works seamlessly on all devices with responsive design 
+                            and touch-friendly voice controls.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick PNR Check -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center p-5">
+                        <h3 class="mb-4">
+                            <i class="fas fa-search-plus text-primary me-2"></i>
+                            Quick PNR Status Check
+                        </h3>
+                        <form action="{{ url_for('main.pnr_status') }}" method="GET" class="d-flex gap-3">
+                            <input type="text" 
+                                   name="pnr" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Enter 10-digit PNR number"
+                                   pattern="\\d{10}"
+                                   maxlength="10"
+                                   required>
+                            <button type="submit" class="btn btn-primary btn-lg px-4">
+                                <i class="fas fa-search"></i> Check
+                            </button>
+                        </form>
+                        <small class="text-muted mt-2 d-block">
+                            Or simply say: "Check PNR status [your 10-digit PNR]"
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Simple animation for any voice indicators
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Home page loaded successfully');
+});
+</script>
+{% endblock %}

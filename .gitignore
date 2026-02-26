@@ -1,0 +1,94 @@
+# ==============================================================================
+# Python - Project Specific Ignores
+# ==============================================================================
+
+# Compiled Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+python_venv/
+ENV/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+.tox/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+.cache
+
+# ==============================================================================
+# Flask/Web Specific
+# ==============================================================================
+
+# Instance folder
+instance/
+
+# Flask-Session
+.sessions/
+sessions/
+
+# Shared environment variables
+.env
+.flaskenv
+
+# Logs
+*.log
+
+# ==============================================================================
+# Databases (SQLite)
+# ==============================================================================
+
+# Local databases should not be committed to source control
+train_booking.db
+*.db
+*.sqlite
+*.sqlite3
+
+# ==============================================================================
+# IDEs and System Files
+# ==============================================================================
+
+# VS Code
+.vscode/
+
+# IntelliJ / PyCharm
+.idea/
+
+# macOS / Windows system files
+.DS_Store
+Thumbs.db
+
+# Temporary / Backup files
+*.swp
+*.swo
+*~

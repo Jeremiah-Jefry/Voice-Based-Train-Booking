@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}E-Ticket - {{ booking.pnr_number }}{% endblock %}
+
+{% block content %}
+<style>
+    .eticket-container {
+        max-width: 900px;
+        margin: 30px auto;
+    }
+    
+    .eticket {
+        background: white;
+        border: 2px solid #0d6efd;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .eticket-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        color: white;
+        padding: 25px;
+        text-align: center;
+    }
+    
+    .eticket-header h2 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+        font-weight: bold;
+    }
+    
+    .eticket-header .pnr {
+        font-size: 24px;
+        font-weight: bold;
+        letter-spacing: 3px;
+        margin-top: 10px;
+        padding: 10px 20px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 5px;
+        display: inline-block;
+    }
+    
+    .eticket-body {
+        padding: 30px;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-confirmed {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 2px solid #0f5132;
+    }
+    
+    .journey-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 5px solid #0d6efd;
+    }
+    
+    .train-details {
+        border-bottom: 2px dashed #dee2e6;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .route-visual {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 20px 0;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+    }
+    
+    .station-box {
+        text-align: center;
+        flex: 1;
+    }
+    
+    .station-code {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0d6efd;
+        margin-bottom: 5px;
+    }
+    
+    .station-name {
+        font-size: 14px;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+    
+    .station-time {
+        font-size: 18px;
+        font-weight: bold;
+        color: #212529;
+    }
+    
+    .route-arrow {
+        flex: 0 0 auto;
+        padding: 0 20px;
+        color: #0d6efd;
+        font-size: 30px;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .info-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+    
+    .info-label {
+        font-size: 12px;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    
+    .info-value {
+        font-size: 16px;
+        font-weight: bold;
+        color: #212529;
+    }
+    
+    .seat-highlight {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    
+    .action-buttons {
+        margin-top: 30px;
+        text-align: center;
+        padding-top: 20px;
+        border-top: 2px solid #dee2e6;
+    }
+    
+    .action-buttons .btn {
+        margin: 5px;
+        min-width: 150px;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .eticket {
+            border: 2px solid #000;
+            box-shadow: none;
+        }
+        
+        body {
+            background: white;
+        }
+    }
+</style>
+
+<div class="container eticket-container">
+    <!-- Action Buttons - Top -->
+    <div class="action-buttons no-print mb-4">
+        <button onclick="window.print()" class="btn btn-success btn-lg">
+            <i class="fas fa-download"></i> Download / Print E-Ticket
+        </button>
+        <a href="{{ url_for('main.booking_history') }}" class="btn btn-secondary btn-lg">
+            <i class="fas fa-list"></i> Booking History
+        </a>
+    </div>
+
+    <!-- E-Ticket -->
+    <div class="eticket">
+        <!-- Header -->
+        <div class="eticket-header">
+            <h2>🚆 Indian Railways E-Ticket</h2>
+            <p class="mb-2">Electronic Reservation Slip</p>
+            <div class="pnr">PNR: {{ booking.pnr_number }}</div>
+        </div>
+
+        <!-- Body -->
+        <div class="eticket-body">
+            <!-- Status -->
+            <div class="text-center mb-4">
+                <span class="status-badge status-confirmed">✓ {{ booking.booking_status|upper }}</span>
+            </div>
+
+            <!-- Journey Section -->
+            <div class="journey-section">
+                <!-- Train Details -->
+                <div class="train-details">
+                    <h4 class="mb-3">
+                        <i class="fas fa-train"></i> 
+                        {{ booking.train_number }} - {{ booking.train_name }}
+                        <small class="text-muted">({{ booking.train_type }})</small>
+                    </h4>
+                    
+                    <!-- Route Visual -->
+                    <div class="route-visual">
+                        <div class="station-box">
+                            <div class="station-code">{{ booking.source_code }}</div>
+                            <div class="station-name">{{ booking.source_station }}</div>
+                            <div class="station-time">{{ booking.departure_time }}</div>
+                            <small class="text-muted">Departure</small>
+                        </div>
+                        
+                        <div class="route-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        
+                        <div class="station-box">
+                            <div class="station-code">{{ booking.dest_code }}</div>
+                            <div class="station-name">{{ booking.dest_station }}</div>
+                            <div class="station-time">{{ booking.arrival_time }}</div>
+                            <small class="text-muted">Arrival</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Booking Information Grid -->
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Travel Date</div>
+                        <div class="info-value">{{ booking.travel_date }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Class</div>
+                        <div class="info-value">{{ booking.train_class|upper|replace('_', ' ') }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Seat Number</div>
+                        <div class="info-value">
+                            <span class="seat-highlight">{{ booking.seat_number or 'Will be allotted' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Booking ID</div>
+                        <div class="info-value">#{{ booking.booking_id }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Passenger Details -->
+            <div class="mt-4">
+                <h5 class="mb-3"><i class="fas fa-user"></i> Passenger Details</h5>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Passenger Name</div>
+                        <div class="info-value">{{ booking.passenger_name }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Age</div>
+                        <div class="info-value">{{ booking.passenger_age }} years</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Gender</div>
+                        <div class="info-value">{{ booking.passenger_gender|upper }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Booking Date</div>
+                        <div class="info-value">{{ booking.created_at }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="mt-4">
+                <h5 class="mb-3"><i class="fas fa-rupee-sign"></i> Payment Details</h5>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Fare Amount</div>
+                        <div class="info-value">₹{{ "%.2f"|format(booking.total_amount) }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Payment Status</div>
+                        <div class="info-value text-success">{{ booking.payment_status|upper }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Payment Method</div>
+                        <div class="info-value">{{ booking.payment_method or 'Online' }}</div>
+                    </div>
+                    
+                    {% if booking.confirmed_at %}
+                    <div class="info-item">
+                        <div class="info-label">Confirmed At</div>
+                        <div class="info-value">{{ booking.confirmed_at }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Important Notes -->
+            <div class="alert alert-info mt-4">
+                <h6><i class="fas fa-info-circle"></i> Important Instructions:</h6>
+                <ul class="mb-0">
+                    <li>Please carry a valid photo ID proof during your journey</li>
+                    <li>Report at the station at least 30 minutes before departure</li>
+                    <li>This is an electronic ticket. No need to carry a printed copy</li>
+                    <li>For cancellation or modifications, visit your booking history</li>
+                    <li>PNR enquiry: SMS PNR {{ booking.pnr_number }} to 139</li>
+                </ul>
+            </div>
+
+            <!-- Footer Info -->
+            <div class="text-center mt-4 text-muted">
+                <small>
+                    This is a computer-generated e-ticket and does not require signature.<br>
+                    For queries, contact Railway Helpline: 139 | Website: www.irctc.co.in
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons - Bottom -->
+    <div class="action-buttons no-print mt-4">
+        <button onclick="window.print()" class="btn btn-success btn-lg">
+            <i class="fas fa-download"></i> Download / Print E-Ticket
+        </button>
+        <a href="{{ url_for('main.booking_history') }}" class="btn btn-secondary btn-lg">
+            <i class="fas fa-list"></i> Booking History
+        </a>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-home"></i> Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

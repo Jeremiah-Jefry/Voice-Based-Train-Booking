@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Train Booking{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1>Welcome, {{ current_user.first_name }}! 👋</h1>
+            <p class="text-muted">Ready to book your next train journey?</p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a href="{{ url_for('main.search') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-search me-2"></i>Search Trains
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <h3 class="mb-3">Quick Stats</h3>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h5 class="text-primary"><i class="fas fa-ticket-alt me-1"></i>Total Bookings</h5>
+                            <h2>{{ recent_bookings|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h5 class="text-success"><i class="fas fa-train me-1"></i>Upcoming Journeys</h5>
+                            <h2>{{ upcoming_journeys|length }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mt-4 mb-3">Upcoming Journeys</h3>
+            {% if upcoming_journeys %}
+                <div class="list-group">
+                    {% for journey in upcoming_journeys %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ journey.train_name }}</h5>
+                            <small>PNR: {{ journey.pnr }}</small>
+                        </div>
+                        <p class="mb-1"><strong>Date:</strong> {{ journey.travel_date }}</p>
+                        <small class="text-muted">Status: {{ journey.status }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No upcoming journeys. <a href="{{ url_for('main.search') }}">Book a ticket</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <h3 class="mb-3">Quick Links</h3>
+            <div class="list-group">
+                <a href="{{ url_for('main.search') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-search me-2"></i>Search Trains
+                </a>
+                <a href="{{ url_for('main.booking_history') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-history me-2"></i>Booking History
+                </a>
+                <a href="{{ url_for('main.pnr_status') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-barcode me-2"></i>Check PNR Status
+                </a>
+                <a href="{{ url_for('voice.voice_interface') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-microphone me-2"></i>Voice Assistant
+                </a>
+                <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-user me-2"></i>My Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
