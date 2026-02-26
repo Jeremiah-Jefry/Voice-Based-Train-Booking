@@ -2,4 +2,4 @@ from flask import Blueprint
 
 bp = Blueprint('voice', __name__)
 
-from app.voice import routes
+from app.voice import routes_improved

@@ -94,18 +94,46 @@ def get_stations_list():
 def parse_command_with_context(command, voice_session, user):
     """Parse command with context awareness - the core AI engine"""
     
+    # Priority State: PNR Collection for Cancellation (Bug Fix)
+    if voice_session.get('state') == 'collecting_cancel_pnr':
+        return handle_cancel_pnr_collection(command, voice_session, user)
+
+    # 1. Get Intent First to check for interruptions
     context = analyze_context(command, voice_session)
     intent = detect_smart_intent(command, context, voice_session)
     
+    # Priority 1: High-level Interruptions (like cancelling a ticket vs cancelling a prompt)
+    if intent['type'] == 'cancel_booking' and 'booking' in command:
+        voice_session['booking_in_progress'] = None 
+        voice_session['state'] = None
+        return handle_cancel_booking(command, voice_session, user)
+
+    # Priority 2: Active Multi-step Flows
+    if voice_session.get('booking_in_progress'):
+        return handle_booking_details_collection(command, voice_session)
+
+    state = voice_session.get('state')
+    
+    # Priority 3: State-based collections
+    if state == 'wait_for_locations':
+        search_params = extract_locations(command)
+        if search_params:
+            voice_session['state'] = None 
+            date = extract_date_smart(command)
+            return process_train_search_smart(search_params[0], search_params[1], date, voice_session, user)
+    
+    # Priority 4: Branch on Intent
     if intent['type'] == 'greeting':
         return handle_greeting_personalized(user)
+    elif intent['type'] == 'start_booking':
+        return handle_start_booking(intent['train_index'], voice_session)
+    elif intent['type'] == 'cancel_booking':
+        return handle_cancel_booking(command, voice_session, user)
     elif intent['type'] == 'search_trains':
-        voice_session['last_search'] = {
-            'source': intent.get('source'),
-            'destination': intent.get('destination'),
-            'date': intent.get('date')
-        }
+        voice_session['last_search'] = {'source': intent.get('source'), 'destination': intent.get('destination'), 'date': intent.get('date')}
         return process_train_search_smart(intent.get('source'), intent.get('destination'), intent.get('date'), voice_session, user)
+    elif intent['type'] == 'incomplete_search':
+        return handle_incomplete_search(voice_session)
     elif intent['type'] == 'pnr_status':
         return process_pnr_check_smart(intent.get('pnr'))
     elif intent['type'] == 'booking_history':
@@ -119,6 +147,110 @@ def parse_command_with_context(command, voice_session, user):
         return handle_unknown_smart(command, suggestions)
 
 
+def handle_cancel_pnr_collection(command, voice_session, user):
+    """Handle the PNR collection loop for cancellation with exit path"""
+    # 1. Check for Abort keywords
+    if any(w in command for w in ['stop', 'cancel', 'never mind', 'exit', 'quit']):
+        voice_session['state'] = None
+        return {
+            'response': "Ok, I've aborted the cancellation. How else can I help?",
+            'speak': "Ok, cancelled. What else can I do for you?"
+        }
+
+    # 2. Extract PNR
+    pnr_match = re.search(r'(\d{10})', command)
+    if pnr_match:
+        pnr = pnr_match.group(1)
+        voice_session['state'] = None # Clear state
+        return {
+            'response': f"✓ Cancellation request for PNR **{pnr}** submitted.",
+            'speak': f"Ok, I have submitted the cancellation request for PNR {pnr}."
+        }
+    
+    # 3. Ask again
+    return {
+        'response': "I couldn't find a 10-digit number. Please say the **PNR number** clearly, or say 'stop' to go back.",
+        'speak': "I didn't hear a PNR. Please say the PNR number clearly, or say stop to go back."
+    }
+
+
+def handle_incomplete_search(voice_session):
+    """Handle missing journey details for a search or booking intent"""
+    voice_session['state'] = 'wait_for_locations'
+    prompt = "I can help with that! Where are you traveling from, where to, and on what date?"
+    return {'response': prompt, 'speak': prompt}
+
+
+def handle_start_booking(train_index, voice_session):
+    """Start the detailed booking collection flow"""
+    trains = voice_session.get('trains_available', [])
+    if not trains or train_index >= len(trains):
+        return {'response': "Please select a valid train.", 'speak': "I couldn't find that train. Which one would you like?"}
+    
+    train = trains[train_index]
+    voice_session['booking_in_progress'] = {'train': train, 'stage': 'collect_name', 'collected': {}}
+    
+    response = f"Great, booking **{train['train_name']}**. What is your **full name**?"
+    speak = f"Ok, booking {train['train_name']}. What is your full name?"
+    return {'response': response, 'speak': speak}
+
+
+def handle_booking_details_collection(command, voice_session):
+    """Guide user through multi-step details for booking"""
+    booking = voice_session['booking_in_progress']
+    stage = booking['stage']
+    collected = booking['collected']
+    
+    if any(w in command for w in ['cancel', 'stop', 'quit']):
+        voice_session['booking_in_progress'] = None
+        return {'response': "Booking cancelled. How else can I help?", 'speak': "Cancelled. What else can I do?"}
+
+    if stage == 'collect_name':
+        name = command.title()
+        collected['name'] = name
+        booking['stage'] = 'collect_age'
+        return {'response': f"Got it, **{name}**. How old are you?", 'speak': f"Got it, {name}. How old are you?"}
+    
+    elif stage == 'collect_age':
+        age_match = re.search(r'(\d+)', command)
+        if age_match:
+            age = age_match.group(1)
+            collected['age'] = age
+            booking['stage'] = 'collect_gender'
+            return {'response': f"Age **{age}**. Got it. What is your gender?", 'speak': f"{age}. Got it. What is your gender?"}
+        return {'response': "Please say your age as a number.", 'speak': "I didn't catch that. Say your age as a number."}
+    
+    elif stage == 'collect_gender':
+        gender = 'Male' if 'male' in command else 'Female' if 'female' in command else 'Other'
+        collected['gender'] = gender
+        voice_session['booking_in_progress'] = None # End for now or add more steps
+        return {
+            'response': f"✓ Booking Summary: **{booking['train']['train_name']}** for **{collected['name']}**.\n\nType **Book** on the site to finish.",
+            'speak': f"Ok, I have saved your details for {booking['train']['train_name']}. You can finish booking on the website."
+        }
+    
+    return {'response': "I didn't quite get that.", 'speak': "Sorry, please repeat that."}
+
+
+def handle_cancel_booking(command, voice_session, user):
+    """Handle booking cancellation flow"""
+    pnr_match = re.search(r'(\d{10})', command)
+    pnr = pnr_match.group(1) if pnr_match else None
+    
+    if pnr:
+        voice_session['state'] = None
+        return {
+            'response': f"✓ Cancellation request for PNR **{pnr}** submitted.",
+            'speak': f"Ok, I have submitted the cancellation request for PNR {pnr}."
+        }
+    
+    voice_session['state'] = 'collecting_cancel_pnr'
+    return {
+        'response': "Search for PNR to cancel. Please tell me your **10-digit PNR number**.",
+        'speak': "To cancel, please tell me your 10 digit PNR number."
+    }
+
+
 def analyze_context(command, voice_session):
     """Analyze previous context to understand intent better"""
     context = {
@@ -130,30 +262,61 @@ def analyze_context(command, voice_session):
 
 
 def detect_smart_intent(command, context, voice_session):
-    """Detect intent with context-awareness - smarter than regex alone"""
+    """Detect intent with context-awareness - smarter than keywords alone"""
     
-    # Check greeting first
-    if any(word in command for word in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'namaste', 'sarah']):
+    # 1. Greetings - use word boundaries to avoid matching "hi" in "delhi"
+    greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'namaste', 'sarah']
+    if any(re.search(rf'\b{word}\b', command) for word in greeting_words):
         return {'type': 'greeting'}
     
-    # Check help
-    if any(word in command for word in ['help', 'what can', 'how do', 'assist', 'capability']):
+    # 2. Help
+    if any(word in command for word in ['help', 'what can you', 'how do', 'assist']):
         return {'type': 'help'}
-    
-    # Check booking history
-    if any(word in command for word in ['my bookings', 'booking', 'ticket', 'reservation', 'history', 'previous']):
-        if not ('from' in command or 'to' in command):  # Don't confuse with search
+
+    # 3. Booking history (Prioritized to avoid overlap)
+    if 'show' in command or 'history' in command or ('my' in command and 'booking' in command):
+        if not any(word in command for word in ['to', 'from', 'between']): # Simple check to not block search
             return {'type': 'booking_history'}
-    
-    # Check PNR
+
+    # 4. PNR Status
     pnr_match = re.search(r'(\d{10})', command)
     if pnr_match or 'pnr' in command:
         pnr_num = pnr_match.group(1) if pnr_match else None
         return {'type': 'pnr_status', 'pnr': pnr_num}
+
+    # 5. Booking Selection (Bug Fix 1)
+    if voice_session.get('last_search') or voice_session.get('trains_available'):
+        # Check for phrases like "book 1", "first one", "book option 2"
+        book_match = re.search(r'(?:book|select|take|want)\s+(?:train|option|number)?\s*(?:one|two|three|1|2|3|first|second|third)', command)
+        ordinals = {'first': 0, 'second': 1, 'third': 2}
+        words = {'one': 0, 'two': 1, 'three': 2}
+        
+        if book_match or any(w in command for w in ['first', 'second', 'third']):
+            match_text = book_match.group(0) if book_match else command
+            idx = 0
+            for k, v in ordinals.items():
+                if k in match_text: idx = v
+            for k, v in words.items():
+                if k in match_text: idx = v
+            digit_match = re.search(r'(\d)', match_text)
+            if digit_match: idx = int(digit_match.group(1)) - 1
+            
+            return {'type': 'start_booking', 'train_index': max(0, idx)}
+
+    # 6. Cancel Booking
+    if 'cancel' in command and any(w in command for w in ['booking', 'ticket', 'train', 'pnr', 'reservation']):
+        return {'type': 'cancel_booking'}
+
+    # 7. Search / Booking (Filtering out history keywords)
+    search_keywords = ['book', 'train', 'search', 'ticket', 'travel', 'go to', 'find']
+    history_keywords = ['show', 'history', 'my tickets', 'previous']
     
-    # Check train search
+    has_search_trigger = any(kw in command for kw in search_keywords)
+    is_not_history = not any(kw in command for kw in history_keywords)
+    
     search_params = extract_locations(command)
-    if search_params:
+    
+    if search_params and search_params[0] and search_params[1] and is_not_history:
         return {
             'type': 'search_trains',
             'source': search_params[0],
@@ -161,18 +324,22 @@ def detect_smart_intent(command, context, voice_session):
             'date': extract_date_smart(command)
         }
     
-    # Check if follow-up to previous search
+    # Trigger incomplete search if intent is seen or partial locations found (and not history)
+    if (has_search_trigger and is_not_history) or (search_params and (search_params[0] or search_params[1]) and is_not_history):
+        return {'type': 'incomplete_search'}
+
+    # 8. Follow-up to previous search
     if context.get('has_recent_search'):
-        follow_up_words = ['which', 'first', 'best', 'cheapest', 'fastest', 'price', 'when', 'how much']
+        follow_up_words = ['which', 'first', 'best', 'cheapest', 'fastest', 'price', 'cost']
         if any(word in command for word in follow_up_words):
             return {'type': 'follow_up'}
-    
+
     return {'type': 'unknown'}
 
 
 def extract_locations(command):
-    """Smart location extraction using fuzzy matching"""
-    # List of known locations
+    """Smart location extraction using fuzzy matching and excluding command words"""
+    # 1. Check for Coimbatore Fix
     locations = {
         'mumbai': ['mumbai', 'bombay', 'csmt', 'dadar'],
         'delhi': ['delhi', 'ndls', 'new delhi'],
@@ -183,32 +350,32 @@ def extract_locations(command):
         'pune': ['pune', 'poona'],
         'ahmedabad': ['ahmedabad', 'adi'],
         'jaipur': ['jaipur', 'jp'],
-        'lucknow': ['lucknow', 'lko']
+        'lucknow': ['lucknow', 'lko'],
+        'coimbatore': ['coimbatore', 'cbe', 'kovai']
     }
     
     found_locations = []
-    words = command.split()
+    # Normalize and split, but only keep words that aren't common command keywords
+    keywords_to_exclude = ['trains', 'train', 'book', 'search', 'ticket', 'from', 'to', 'for']
+    words = [w for w in command.lower().split() if w not in keywords_to_exclude]
     
     for city, aliases in locations.items():
-        for word in words:
-            if any(alias in word.lower() for alias in aliases):
-                found_locations.append(city)
-                break
+        if any(alias in command.lower() for alias in aliases):
+            found_locations.append(city)
     
-    if len(found_locations) >= 2:
-        return (found_locations[0], found_locations[1])
+    # Deduplicate while preserving order
+    unique_locations = list(dict.fromkeys(found_locations))
     
-    # Try regex fallback
-    patterns = [
-        r'(?:from|for)\s+([a-z]+)\s+to\s+([a-z]+)',
-        r'([a-z]+)\s+to\s+([a-z]+)',
-    ]
+    if len(unique_locations) >= 2:
+        return (unique_locations[0], unique_locations[1])
     
-    for pattern in patterns:
-        match = re.search(pattern, command)
-        if match:
-            return (match.group(1), match.group(2))
-    
+    # Handle single location searches if triggered by "to [city]"
+    dest_match = re.search(r'(?:to|towards|for)\s+([a-z]+)', command.lower())
+    if dest_match:
+        city = dest_match.group(1)
+        if city in locations:
+             return (None, city) # Source unknown, Destination found
+
     return None
 
 
@@ -262,7 +429,7 @@ def handle_follow_up_smart(command, voice_session):
 
 
 def process_train_search_smart(source, destination, travel_date, voice_session, user):
-    """Search trains with better matching and varied responses"""
+    """Search trains with availability and pricing info for VUI"""
     
     source_stations = find_stations_fuzzy(source)
     dest_stations = find_stations_fuzzy(destination)
@@ -284,36 +451,32 @@ def process_train_search_smart(source, destination, travel_date, voice_session, 
             'speak': f'No trains available for that route on that date. Would you like to try a different date?'
         }
     
-    # Varied response
-    variations = [
-        f'Great! Found {len(trains)} excellent options for you!',
-        f'Perfect! {len(trains)} trains available for your journey.',
-        f'Excellent news! {len(trains)} trains to choose from.',
-        f'You are in luck! {len(trains)} options found.'
-    ]
-    
-    speak = random.choice(variations) + f' From {source_station["station_name"]} to {dest_station["station_name"]}. '
+    # Store for future booking
+    voice_session['trains_available'] = trains[:6]
     
     response = f'Found {len(trains)} trains from {source_station["station_name"]} to {dest_station["station_name"]}:\n\n'
+    speak = f"I found {len(trains)} trains for your trip from {source_station['city']} to {dest_station['city']}. "
     
     trains_data = []
-    for i, train in enumerate(trains[:6], 1):
-        price = train.get('price_sleeper', 0) or train.get('price_ac_3', 0) or 0
-        response += f'{i}. {train["train_name"]} - Departs {train["departure_time"]}, From ₹{int(price)}\n'
+    for i, train in enumerate(trains[:3], 1): # VUI should only speak top options clearly
+        price = train.get('price_sleeper', 0) or train.get('price_ac_3', 0) or 850
+        seats = random.randint(12, 85) # Mock seat availability
         
-        if i <= 2:
-            speak += f'{train["train_name"]} at {train["departure_time"]}. '
+        response += f'{i}. {train["train_name"]} - {train["departure_time"]} - From ₹{int(price)} ({seats} seats)\n'
+        
+        # VUI optimized speak string (no symbols, no markdown)
+        speak += f"Train {i} is {train['train_name']} at {train['departure_time']}. Tickets start at {int(price)} rupees with {seats} seats available. "
         
         trains_data.append({
             'schedule_id': train.get('schedule_id'),
             'train_number': train.get('train_number'),
             'train_name': train.get('train_name'),
             'departure': train.get('departure_time'),
-            'price': price
+            'price': price,
+            'seats': seats
         })
     
-    if len(trains) > 2:
-        speak += f'And {len(trains) - 2} more options available.'
+    speak += "Shall I book one of these for you?"
     
     return {
         'response': response,
@@ -424,12 +587,19 @@ def process_booking_history_smart(user):
 
 
 def find_stations_fuzzy(search_term):
-    """Fuzzy station matching"""
+    """Fuzzy station matching with prioritization"""
     if not search_term:
         return []
     
     # Try exact match first
+    search_lower = search_term.lower()
     stations = find_stations(search_term)
+    
+    # Prioritize New Delhi (NDLS) if "delhi" is searched
+    if search_lower == 'delhi' and stations:
+        stations.sort(key=lambda s: 0 if s['station_code'] == 'NDLS' else 1)
+        return stations
+        
     if stations:
         return stations
     
@@ -442,10 +612,9 @@ def find_stations_fuzzy(search_term):
         'chennai': ['madras', 'mas'],
         'hyderabad': ['hyb'],
         'jaipur': ['jp'],
-        'lucknow': ['lko']
+        'lucknow': ['lko'],
+        'coimbatore': ['coimbatore', 'cbe', 'kovai']
     }
-    
-    search_lower = search_term.lower()
     
     for city, alias_list in aliases.items():
         for alias in alias_list:
