@@ -476,7 +476,7 @@ def process_train_search_smart(source, destination, travel_date, voice_session, 
             'seats': seats
         })
     
-    speak += "Shall I book one of these for you?"
+    speak += "Which one would you like to book? Say book 1, book 2, or ask for the cheapest option."
     
     return {
         'response': response,
