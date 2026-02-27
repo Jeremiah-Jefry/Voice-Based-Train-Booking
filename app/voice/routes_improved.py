@@ -183,11 +183,9 @@ def handle_pnr_status_collection(command, voice_session):
 
 
 def handle_cancel_pnr_collection(command, voice_session, user):
-    """Handle the PNR collection loop for cancellation (Functional Version)"""
-    if any(w in command for w in ['stop', 'cancel', 'exit', 'never mind']):
-        voice_session['state'] = None
-        return {'response': "Ok, cancellation aborted.", 'speak': "Ok. Cancellation cancelled."}
-
+    """Handle the PNR collection loop for cancellation with rich response"""
+    
+    # Extraction with space handling
     digits = extract_digits_from_speech(command)
     pnr_match = re.search(r'(\d{10})', digits)
     
@@ -198,7 +196,9 @@ def handle_cancel_pnr_collection(command, voice_session, user):
         if cancel_booking_by_pnr(pnr):
             return {
                 'response': f"✓ Ticket with PNR **{pnr}** has been successfully cancelled.",
-                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated shortly."
+                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated shortly.",
+                'action': 'cancel_complete',
+                'data': {'pnr': pnr, 'status': 'Cancelled'}
             }
         else:
             return {
@@ -206,6 +206,11 @@ def handle_cancel_pnr_collection(command, voice_session, user):
                 'speak': f"I could not find that PNR. Please try again."
             }
     
+    # Only abort if no digits found AND abort keyword present
+    if any(w in command for w in ['stop', 'cancel', 'exit', 'never mind']):
+        voice_session['state'] = None
+        return {'response': "Ok, cancellation aborted.", 'speak': "Ok. Cancellation cancelled."}
+        
     return {
         'response': "I need a **10-digit number**. Please say the PNR again or say 'stop'.",
         'speak': "I need a 10 digit number. Please say the PNR again or say stop."
@@ -328,16 +333,18 @@ def complete_booking(voice_session, user):
 
 def handle_cancel_booking(command, voice_session, user):
     """Handle booking cancellation flow with PNR extraction and state management"""
-    digits = extract_digits_from_speech(command)
-    pnr_match = re.search(r'(\d{10})', digits)
-    pnr = pnr_match.group(1) if pnr_match else None
+    # Robust extraction
+    pnr_match = re.search(r'(\d\s*){10}', command)
+    pnr = pnr_match.group(0).replace(" ", "") if pnr_match else None
     
     if pnr:
         voice_session['state'] = None
         if cancel_booking_by_pnr(pnr):
             return {
                 'response': f"✓ Ticket **{pnr}** has been successfully cancelled.", 
-                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated."
+                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated.",
+                'action': 'cancel_complete',
+                'data': {'pnr': pnr, 'status': 'Cancelled'}
             }
         return {'response': f"PNR **{pnr}** not found.", 'speak': f"I could not find that PNR. Let's try again."}
     
@@ -371,25 +378,25 @@ def detect_smart_intent(command, context, voice_session):
     if any(word in command for word in ['help', 'what can you', 'how do', 'assist']):
         return {'type': 'help'}
 
-    # 3. Booking history (Prioritized to avoid overlap)
-    if 'show' in command or 'history' in command or ('my' in command and 'booking' in command):
-        if not any(word in command for word in ['to', 'from', 'between']): # Simple check to not block search
-            return {'type': 'booking_history'}
-
-    # 4. PNR Status / Cancel (Robust Digit extraction with space handling)
+    # 3. PNR Status / Cancel (ROBUST Priority for specific actions)
     pnr_match = re.search(r'(\d\s*){10}', command)
     pnr = pnr_match.group(0).replace(" ", "") if pnr_match else None
 
-    # Status Intent
-    if any(w in command for w in ['status', 'check pnr', 'my pnr', 'where is']):
-        return {'type': 'pnr_status', 'pnr': pnr}
-
-    # Cancellation Intent
+    # Specific Cancellation Trigger (Highest Priority for this keyword)
     if any(w in command for w in ['cancel', 'delete', 'void']):
         return {'type': 'cancel_booking', 'pnr': pnr}
 
+    # Status Trigger
+    if any(w in command for w in ['status', 'check pnr', 'my pnr', 'where is']):
+        return {'type': 'pnr_status', 'pnr': pnr}
+
     if pnr: # Direct PNR mention
         return {'type': 'pnr_status', 'pnr': pnr}
+
+    # 4. Booking history (Lower priority than specific PNR actions)
+    if 'show' in command or 'history' in command or ('my' in command and 'booking' in command):
+        if not any(word in command for word in ['to', 'from', 'between']): # Simple check to not block search
+            return {'type': 'booking_history'}
 
     # 5. Booking Selection (Bug Fix 1)
     if voice_session.get('last_search') or voice_session.get('trains_available'):
