@@ -687,3 +687,34 @@ def get_booking_details(booking_id):
     conn.close()
     
     return dict(result) if result else None
+
+
+def cancel_booking_by_pnr(pnr_number):
+    """Cancel a booking by its PNR number"""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    try:
+        # Check if PNR exists
+        cursor.execute('SELECT id FROM bookings WHERE pnr_number = ?', (pnr_number,))
+        booking = cursor.fetchone()
+        
+        if not booking:
+            conn.close()
+            return False
+            
+        # Update status to cancelled
+        cursor.execute('''
+            UPDATE bookings 
+            SET booking_status = 'cancelled',
+                cancelled_at = ?
+            WHERE pnr_number = ?
+        ''', (datetime.now().isoformat(), pnr_number))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error cancelling booking: {e}")
+        conn.close()
+        return False

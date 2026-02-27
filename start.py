@@ -38,17 +38,9 @@ def main():
     # Initialize database
     print("\n🗄️  Initializing database...")
     try:
-        from app import create_app, db
-        
-        app = create_app()
-        with app.app_context():
-            db.create_all()
-            print("✅ Database tables created")
-            
-        # Seed database with sample data
-        print("\n🌱 Seeding database with sample data...")
-        subprocess.run([sys.executable, "seed_db.py"], check=True)
-        print("✅ Sample data added successfully")
+        from app.database import init_database
+        init_database()
+        print("✅ Database initialized successfully")
         
     except Exception as e:
         print(f"❌ Error setting up database: {e}")

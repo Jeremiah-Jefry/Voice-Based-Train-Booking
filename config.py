@@ -7,22 +7,11 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'voice-train-booking-dev-key-2026'
     
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'train_booking.db')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DATABASE_PATH = os.path.join(basedir, 'train_booking.db')
     
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
     SESSION_TYPE = 'filesystem'
-    
-    # Redis configuration for caching
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
-    
-    # Payment configuration
-    STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
-    STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
-    RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
-    RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
     
     # Voice API configuration
     SPEECH_API_TIMEOUT = 10  # seconds

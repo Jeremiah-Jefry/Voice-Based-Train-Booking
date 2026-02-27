@@ -6,7 +6,7 @@ Replaces the existing routes.py with improved context awareness and personalizat
 from flask import render_template, request, jsonify, session, redirect, url_for
 from flask_login import login_required, current_user
 from app.voice import bp
-from app.database import search_trains, find_stations, get_booking_by_pnr, get_user_bookings, create_booking
+from app.database import search_trains, find_stations, get_booking_by_pnr, get_user_bookings, create_booking, cancel_booking_by_pnr
 from datetime import datetime, timedelta
 import re
 import json
@@ -94,15 +94,18 @@ def get_stations_list():
 def parse_command_with_context(command, voice_session, user):
     """Parse command with context awareness - the core AI engine"""
     
-    # Priority State: PNR Collection for Cancellation (Bug Fix)
-    if voice_session.get('state') == 'collecting_cancel_pnr':
+    # Priority State: Multi-turn Collections (Bug Fixes)
+    state = voice_session.get('state')
+    if state == 'collecting_pnr':
+        return handle_pnr_status_collection(command, voice_session)
+    if state == 'collecting_cancel_pnr':
         return handle_cancel_pnr_collection(command, voice_session, user)
 
     # 1. Get Intent First to check for interruptions
     context = analyze_context(command, voice_session)
     intent = detect_smart_intent(command, context, voice_session)
     
-    # Priority 1: High-level Interruptions (like cancelling a ticket vs cancelling a prompt)
+    # Priority 1: High-level Interruptions
     if intent['type'] == 'cancel_booking' and 'booking' in command:
         voice_session['booking_in_progress'] = None 
         voice_session['state'] = None
@@ -111,8 +114,6 @@ def parse_command_with_context(command, voice_session, user):
     # Priority 2: Active Multi-step Flows
     if voice_session.get('booking_in_progress'):
         return handle_booking_details_collection(command, voice_session, user)
-
-    state = voice_session.get('state')
     
     # Priority 3: State-based collections
     if state == 'wait_for_locations':
@@ -135,7 +136,16 @@ def parse_command_with_context(command, voice_session, user):
     elif intent['type'] == 'incomplete_search':
         return handle_incomplete_search(voice_session)
     elif intent['type'] == 'pnr_status':
-        return process_pnr_check_smart(intent.get('pnr'))
+        # Route strictly to the rich-detail handler
+        pnr = intent.get('pnr')
+        if pnr:
+            return process_pnr_check_smart(pnr)
+        # If no PNR in command, trigger collection state
+        voice_session['state'] = 'collecting_pnr'
+        return {
+            'response': "Please say your **10-digit PNR number**.", 
+            'speak': "Please say your 10 digit PNR number."
+        }
     elif intent['type'] == 'booking_history':
         return process_booking_history_smart(user)
     elif intent['type'] == 'follow_up':
@@ -147,30 +157,58 @@ def parse_command_with_context(command, voice_session, user):
         return handle_unknown_smart(command, suggestions)
 
 
-def handle_cancel_pnr_collection(command, voice_session, user):
-    """Handle the PNR collection loop for cancellation with exit path"""
-    # 1. Check for Abort keywords
-    if any(w in command for w in ['stop', 'cancel', 'never mind', 'exit', 'quit']):
-        voice_session['state'] = None
-        return {
-            'response': "Ok, I've aborted the cancellation. How else can I help?",
-            'speak': "Ok, cancelled. What else can I do for you?"
-        }
+def extract_digits_from_speech(command):
+    """Clean speech-to-text string to extract pure digits (handles 'one two' and '1 2')"""
+    num_map = {'zero':'0', 'one':'1', 'two':'2', 'three':'3', 'four':'4', 'five':'5', 'six':'6', 'seven':'7', 'eight':'8', 'nine':'9'}
+    text = command.lower()
+    for word, digit in num_map.items():
+        text = text.replace(word, digit)
+    return "".join(re.findall(r'\d', text))
 
-    # 2. Extract PNR
-    pnr_match = re.search(r'(\d{10})', command)
+
+def handle_pnr_status_collection(command, voice_session):
+    """Handle the PNR collection loop for status checks"""
+    digits = extract_digits_from_speech(command)
+    pnr_match = re.search(r'(\d{10})', digits)
+    
+    if pnr_match:
+        voice_session['state'] = None
+        return process_pnr_check_smart(pnr_match.group(1))
+    
+    if any(w in command for w in ['stop', 'cancel', 'exit']):
+        voice_session['state'] = None
+        return {'response': "Ok, what else can I help with?", 'speak': "Ok. What else can I help with?"}
+        
+    return {'response': "I need a **10-digit number**. Please say it clearly or say 'stop'.", 'speak': "I need a 10 digit number. Please say it clearly or say stop."}
+
+
+def handle_cancel_pnr_collection(command, voice_session, user):
+    """Handle the PNR collection loop for cancellation (Functional Version)"""
+    if any(w in command for w in ['stop', 'cancel', 'exit', 'never mind']):
+        voice_session['state'] = None
+        return {'response': "Ok, cancellation aborted.", 'speak': "Ok. Cancellation cancelled."}
+
+    digits = extract_digits_from_speech(command)
+    pnr_match = re.search(r'(\d{10})', digits)
+    
     if pnr_match:
         pnr = pnr_match.group(1)
-        voice_session['state'] = None # Clear state
-        return {
-            'response': f"✓ Cancellation request for PNR **{pnr}** submitted.",
-            'speak': f"Ok, I have submitted the cancellation request for PNR {pnr}."
-        }
+        voice_session['state'] = None
+        
+        if cancel_booking_by_pnr(pnr):
+            return {
+                'response': f"✓ Ticket with PNR **{pnr}** has been successfully cancelled.",
+                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated shortly."
+            }
+        else:
+            return {
+                'response': f"I couldn't find a booking with PNR **{pnr}**.",
+                'speak': f"I could not find that PNR. Please try again."
+            }
     
-    # 3. Ask again
     return {
-        'response': "I couldn't find a 10-digit number. Please say the **PNR number** clearly, or say 'stop' to go back.",
-        'speak': "I didn't hear a PNR. Please say the PNR number clearly, or say stop to go back."
+        'response': "I need a **10-digit number**. Please say the PNR again or say 'stop'.",
+        'speak': "I need a 10 digit number. Please say the PNR again or say stop."
     }
 
 
@@ -289,20 +327,24 @@ def complete_booking(voice_session, user):
 
 
 def handle_cancel_booking(command, voice_session, user):
-    """Handle booking cancellation flow"""
-    pnr_match = re.search(r'(\d{10})', command)
+    """Handle booking cancellation flow with PNR extraction and state management"""
+    digits = extract_digits_from_speech(command)
+    pnr_match = re.search(r'(\d{10})', digits)
     pnr = pnr_match.group(1) if pnr_match else None
     
     if pnr:
         voice_session['state'] = None
-        return {
-            'response': f"✓ Cancellation request for PNR **{pnr}** submitted.",
-            'speak': f"Ok, I have submitted the cancellation request for PNR {pnr}."
-        }
+        if cancel_booking_by_pnr(pnr):
+            return {
+                'response': f"✓ Ticket **{pnr}** has been successfully cancelled.", 
+                'speak': f"Your ticket with PNR {pnr} has been successfully cancelled. The refund will be initiated."
+            }
+        return {'response': f"PNR **{pnr}** not found.", 'speak': f"I could not find that PNR. Let's try again."}
     
+    # If no PNR, enter sequence
     voice_session['state'] = 'collecting_cancel_pnr'
     return {
-        'response': "Search for PNR to cancel. Please tell me your **10-digit PNR number**.",
+        'response': "To cancel, please say your **10-digit PNR number**.",
         'speak': "To cancel, please tell me your 10 digit PNR number."
     }
 
@@ -334,11 +376,20 @@ def detect_smart_intent(command, context, voice_session):
         if not any(word in command for word in ['to', 'from', 'between']): # Simple check to not block search
             return {'type': 'booking_history'}
 
-    # 4. PNR Status
-    pnr_match = re.search(r'(\d{10})', command)
-    if pnr_match or 'pnr' in command:
-        pnr_num = pnr_match.group(1) if pnr_match else None
-        return {'type': 'pnr_status', 'pnr': pnr_num}
+    # 4. PNR Status / Cancel (Robust Digit extraction with space handling)
+    pnr_match = re.search(r'(\d\s*){10}', command)
+    pnr = pnr_match.group(0).replace(" ", "") if pnr_match else None
+
+    # Status Intent
+    if any(w in command for w in ['status', 'check pnr', 'my pnr', 'where is']):
+        return {'type': 'pnr_status', 'pnr': pnr}
+
+    # Cancellation Intent
+    if any(w in command for w in ['cancel', 'delete', 'void']):
+        return {'type': 'cancel_booking', 'pnr': pnr}
+
+    if pnr: # Direct PNR mention
+        return {'type': 'pnr_status', 'pnr': pnr}
 
     # 5. Booking Selection (Bug Fix 1)
     if voice_session.get('last_search') or voice_session.get('trains_available'):
@@ -543,14 +594,12 @@ def process_train_search_smart(source, destination, travel_date, voice_session, 
 
 
 def handle_greeting_personalized(user):
-    """Personalized greetings - never repeat"""
+    """Personalized greetings - professional version"""
     greetings = [
-        f"Hello {user.first_name}! I am Sarah, your AI train booking assistant. Ready to help you book?",
-        f"Hey {user.first_name}! I am Sarah. Looking for trains or checking bookings today?",
-        f"Hi {user.first_name}! I am Sarah. How can I assist with your train travel?",
-        f"Welcome back {user.first_name}! I am Sarah. What can I help you with?"
+        f"Hello {user.first_name}! I am Sarah, your AI train booking assistant. How can I help you today?",
+        f"Hi {user.first_name}! Ready to search for trains or check a PNR status?",
+        f"Welcome back {user.first_name}! I am Sarah. What can I do for you?"
     ]
-    
     greeting = random.choice(greetings)
     return {'response': greeting, 'speak': greeting}
 
@@ -606,38 +655,83 @@ def get_smart_suggestions(command, voice_session, user):
 
 
 def process_pnr_check_smart(pnr):
-    """Smart PNR checking"""
+    """Rewritten PNR checker with elite conversational details"""
     booking = get_booking_by_pnr(pnr) if pnr else None
     
     if not booking:
         return {
-            'response': f'PNR {pnr} not found in my records.',
-            'speak': f'I could not find PNR {pnr}. Please double-check the number.'
+            'response': f'PNR {pnr if pnr else ""} not found. Please double-check the number.',
+            'speak': f"I could not find that PNR. Please check the ten digit number and try again."
         }
     
-    response = f"Your PNR {pnr} Status: {booking.get('booking_status', 'Unknown').upper()}\nTrain: {booking.get('train_name', 'N/A')}"
-    speak = f"Your PNR {pnr} is {booking.get('booking_status', 'unknown')}"
+    # 1. Extract Details
+    status = booking.get('booking_status', 'Unknown').title()
+    passenger = booking.get('passenger_name', 'N/A')
+    train_name = booking.get('train_name', 'N/A')
+    train_number = booking.get('train_number', 'N/A')
+    source = booking.get('source_station') or booking.get('source_city') or 'N/A'
+    dest = booking.get('dest_station') or booking.get('dest_city') or 'N/A'
+    date = booking.get('travel_date', 'N/A')
+    amount = int(booking.get('total_amount', 0))
     
-    return {'response': response, 'speak': speak}
+    # 2. UI response
+    response = f"""🔍 **PNR STATUS: {pnr}**
+
+✅ **Status**: {status}
+👤 **Passenger**: {passenger}
+🚂 **Train**: {train_name} ({train_number})
+📍 **Route**: {source} to {dest}
+📅 **Date**: {date}
+💰 **Fare**: ₹{amount}
+
+How else can I help?"""
+
+    # 3. TTS speak (EXACT requested conversational string)
+    speak = (
+        f"Your ticket status is {status}. This is booked for {passenger}, "
+        f"traveling from {source} to {dest} on the {train_name}. "
+        f"The travel date is {date}. The total fare is {amount} rupees. "
+        f"Can I help you with anything else?"
+    )
+    
+    return {
+        'response': response, 
+        'speak': speak,
+        'action': 'show_pnr',
+        'data': {
+            'pnr_number': pnr,
+            'passenger_name': passenger,
+            'train_name': f"{train_name} ({train_number})",
+            'booking_status': status,
+            'source': source,
+            'destination': dest,
+            'travel_date': date,
+            'total_amount': amount
+        }
+    }
 
 
 def process_booking_history_smart(user):
-    """Get booking history with smart formatting"""
-    bookings = get_user_bookings(user.id, 5)
+    """Get active booking history - strictly filtering out cancelled tickets"""
+    all_bookings = get_user_bookings(user.id, 10)
     
-    if not bookings:
+    # Filter out cancelled bookings
+    active_bookings = [b for b in all_bookings if b.get('booking_status', '').lower() != 'cancelled']
+    
+    if not active_bookings:
         return {
-            'response': f'You have not made any bookings yet, {user.first_name}. Would you like to search for trains?',
-            'speak': f'No bookings found. Would you like to search for trains?'
+            'response': f'You have no active bookings, {user.first_name}. Would you like to search for trains?',
+            'speak': f'No active bookings found. Would you like to search for trains?'
         }
     
-    response = f"Your recent bookings:\n\n"
-    speak = f"You have {len(bookings)} recent bookings. "
+    count = len(active_bookings)
+    response = f"You have **{count}** active bookings:\n\n"
+    speak = f"You have {count} active bookings. "
     
-    for i, b in enumerate(bookings[:3], 1):
-        response += f"{i}. {b.get('train_name')} - PNR {b.get('pnr_number')} - {b.get('booking_status')}\n"
+    for i, b in enumerate(active_bookings[:3], 1):
+        response += f"{i}. **{b.get('train_name')}** - PNR {b.get('pnr_number')} - {b.get('booking_status', 'confirmed').title()}\n"
         if i == 1:
-            speak += f"First booking: {b.get('train_name')}. "
+            speak += f"Your next trip is on the {b.get('train_name')}."
     
     return {'response': response, 'speak': speak}
 

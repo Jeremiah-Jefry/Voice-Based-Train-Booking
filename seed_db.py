@@ -1,233 +1,277 @@
 """
-Database seeder for Voice Train Booking Platform
+SQLite3 Database Seeder for Voice Train Booking Platform
 Populates the database with sample data for development and testing
 """
 
-from app import create_app, db
-from app.models import User, Train, Station, Route, Schedule, TrainClass
+import sqlite3
+import hashlib
+import secrets
 from datetime import datetime, time
-import random
+import os
 
-def seed_database():
-    """Seed the database with initial data"""
-    
-    app = create_app()
-    with app.app_context():
-        print("Seeding database...")
-        
-        # Create all tables
-        db.create_all()
-        
-        # Seed stations
-        seed_stations()
-        
-        # Seed trains
-        seed_trains()
-        
-        # Seed routes and schedules
-        seed_routes_and_schedules()
-        
-        # Seed sample user
-        seed_sample_user()
-        
-        print("Database seeding completed!")
+DATABASE = 'train_booking.db'
 
-def seed_stations():
-    """Seed major Indian railway stations"""
-    
+def hash_password(password):
+    salt = secrets.token_hex(16)
+    return hashlib.sha256((salt + password).encode()).hexdigest() + ':' + salt
+
+def seed_stations(cursor):
     stations_data = [
-        # Major Metro Cities
-        ("CSMT", "Chhatrapati Shivaji Maharaj Terminus", "Mumbai", "Maharashtra"),
-        ("LTT", "Lokmanya Tilak Terminus", "Mumbai", "Maharashtra"),
-        ("NDLS", "New Delhi Railway Station", "New Delhi", "Delhi"),
-        ("DLI", "Delhi Junction", "New Delhi", "Delhi"),
-        ("HWH", "Howrah Junction", "Kolkata", "West Bengal"),
-        ("SBC", "KSR Bengaluru City Junction", "Bangalore", "Karnataka"),
-        ("MAS", "Chennai Central", "Chennai", "Tamil Nadu"),
-        ("HYB", "Hyderabad Deccan", "Hyderabad", "Telangana"),
-        ("PUNE", "Pune Junction", "Pune", "Maharashtra"),
-        ("ADI", "Ahmedabad Junction", "Ahmedabad", "Gujarat"),
-        
-        # Secondary Cities
-        ("JP", "Jaipur Junction", "Jaipur", "Rajasthan"),
-        ("LKO", "Lucknow Charbagh", "Lucknow", "Uttar Pradesh"),
-        ("BPL", "Bhopal Junction", "Bhopal", "Madhya Pradesh"),
-        ("TVC", "Thiruvananthapuram Central", "Thiruvananthapuram", "Kerala"),
-        ("VSKP", "Visakhapatnam Junction", "Visakhapatnam", "Andhra Pradesh"),
-        ("BBS", "Bhubaneswar", "Bhubaneswar", "Odisha"),
-        ("GWL", "Gwalior Junction", "Gwalior", "Madhya Pradesh"),
-        ("JBP", "Jabalpur Junction", "Jabalpur", "Madhya Pradesh"),
-        ("UDZ", "Udaipur City", "Udaipur", "Rajasthan"),
-        ("CDG", "Chandigarh Railway Station", "Chandigarh", "Punjab"),
+        ("CSMT", "Chhatrapati Shivaji Maharaj Terminus", "Mumbai", "Maharashtra", "CR"),
+        ("LTT", "Lokmanya Tilak Terminus", "Mumbai", "Maharashtra", "CR"),
+        ("NDLS", "New Delhi Railway Station", "New Delhi", "Delhi", "NR"),
+        ("DLI", "Delhi Junction", "New Delhi", "Delhi", "NR"),
+        ("HWH", "Howrah Junction", "Kolkata", "West Bengal", "ER"),
+        ("SBC", "KSR Bengaluru City Junction", "Bangalore", "Karnataka", "SR"),
+        ("MAS", "Chennai Central", "Chennai", "Tamil Nadu", "SR"),
+        ("HYB", "Hyderabad Deccan", "Hyderabad", "Telangana", "SCR"),
+        ("PUNE", "Pune Junction", "Pune", "Maharashtra", "CR"),
+        ("ADI", "Ahmedabad Junction", "Ahmedabad", "Gujarat", "WR"),
+        ("JP", "Jaipur Junction", "Jaipur", "Rajasthan", "NWR"),
+        ("LKO", "Lucknow Charbagh", "Lucknow", "Uttar Pradesh", "NR"),
+        ("BPL", "Bhopal Junction", "Bhopal", "Madhya Pradesh", "WCR"),
+        ("TVC", "Thiruvananthapuram Central", "Thiruvananthapuram", "Kerala", "SR"),
+        ("VSKP", "Visakhapatnam Junction", "Visakhapatnam", "Andhra Pradesh", "ECoR"),
+        ("BBS", "Bhubaneswar", "Bhubaneswar", "Odisha", "ECoR"),
+        ("GWL", "Gwalior Junction", "Gwalior", "Madhya Pradesh", "NCR"),
+        ("JBP", "Jabalpur Junction", "Jabalpur", "Madhya Pradesh", "WCR"),
+        ("UDZ", "Udaipur City", "Udaipur", "Rajasthan", "NWR"),
+        ("CDG", "Chandigarh Railway Station", "Chandigarh", "Punjab", "NR"),
     ]
-    
-    for code, name, city, state in stations_data:
-        existing = Station.query.filter_by(station_code=code).first()
-        if not existing:
-            station = Station(
-                station_code=code,
-                station_name=name,
-                city=city,
-                state=state,
-                zone="CR" if state == "Maharashtra" else "NR" if state in ["Delhi", "Punjab"] else "SR"
-            )
-            db.session.add(station)
-    
-    db.session.commit()
+    for code, name, city, state, zone in stations_data:
+        cursor.execute('INSERT OR IGNORE INTO stations (station_code, station_name, city, state, zone) VALUES (?, ?, ?, ?, ?)', (code, name, city, state, zone))
     print(f"Seeded {len(stations_data)} stations")
 
-def seed_trains():
-    """Seed popular Indian trains"""
-    
+def seed_demo_user(cursor):
+    password_hash = hash_password("password123")
+    cursor.execute('INSERT OR IGNORE INTO users (username, email, password_hash, first_name, last_name, phone, voice_enabled, preferred_language) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        ("demo_user", "demo@example.com", password_hash, "Demo", "User", "9876543210", 1, "en-IN"))
+    print("Created demo user (username: demo_user, password: password123)")
+
+def seed_trains(cursor):
+    """Seed trains data"""
     trains_data = [
-        ("12951", "Mumbai Rajdhani Express", "Rajdhani", True, True, True, False, False, False),
-        ("12302", "Kolkata Rajdhani Express", "Rajdhani", True, True, True, False, False, False),
-        ("12434", "Chennai Rajdhani Express", "Rajdhani", True, True, True, False, False, False),
-        ("12009", "Shatabdi Express", "Shatabdi", False, False, False, False, True, False),
-        ("12627", "Karnataka Express", "Express", False, True, True, True, False, False),
-        ("12163", "Dadar Express", "Express", False, False, True, True, False, False),
-        ("19037", "Avadh Express", "Express", False, False, True, True, False, False),
-        ("12617", "Mangala Lakshadweep Express", "Express", False, True, True, True, False, False),
-        ("12049", "Gatimaan Express", "Express", False, False, False, False, True, False),
-        ("22691", "Rajdhani Express", "Rajdhani", True, True, True, False, False, False),
-        ("12801", "Purushottam Express", "Express", False, True, True, True, False, False),
-        ("12315", "Ananya Express", "Express", False, True, True, True, False, False),
-        ("12413", "Poornima Express", "Express", False, False, True, True, False, False),
-        ("19023", "Firozpur Express", "Express", False, False, True, True, False, False),
-        ("12615", "Grand Trunk Express", "Express", False, False, True, True, False, False),
+        ("12001", "Bhopal Shatabdi", "Shatabdi", 1, 1, 0, 0, 0, 0),
+        ("12345", "Rajdhani Express", "Rajdhani", 1, 1, 1, 0, 0, 0),
+        ("12456", "Mumbai Rajdhani", "Rajdhani", 1, 1, 1, 0, 0, 0),
+        ("19001", "Dehradun Express", "Superfast", 0, 1, 1, 1, 0, 0),
+        ("12621", "Tamil Nadu Express", "Express", 0, 1, 1, 1, 1, 0),
+        ("12625", "Kerala Express", "Express", 0, 1, 1, 1, 1, 0),
+        ("12952", "Tamilnadu Sampark Kranti", "Superfast", 0, 1, 1, 1, 0, 0),
+        ("13005", "Darbhanga Express", "Express", 0, 0, 1, 1, 1, 1),
+        ("14006", "Lichchavi Express", "Express", 0, 0, 1, 1, 1, 1),
+        ("15015", "Guwahati Express", "Express", 0, 0, 1, 1, 1, 1),
     ]
     
-    for number, name, train_type, ac1, ac2, ac3, sl, cc, ss in trains_data:
-        existing = Train.query.filter_by(train_number=number).first()
-        if not existing:
-            train = Train(
-                train_number=number,
-                train_name=name,
-                train_type=train_type,
-                has_ac_1=ac1,
-                has_ac_2=ac2,
-                has_ac_3=ac3,
-                has_sleeper=sl,
-                has_chair_car=cc,
-                has_second_sitting=ss
-            )
-            db.session.add(train)
+    for train_num, train_name, train_type, ac1, ac2, ac3, sleeper, chair, sitting in trains_data:
+        cursor.execute('''
+            INSERT OR IGNORE INTO trains 
+            (train_number, train_name, train_type, has_ac_1, has_ac_2, has_ac_3, has_sleeper, has_chair_car, has_second_sitting)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (train_num, train_name, train_type, ac1, ac2, ac3, sleeper, chair, sitting))
     
-    db.session.commit()
     print(f"Seeded {len(trains_data)} trains")
 
-def seed_routes_and_schedules():
-    """Seed routes between major stations and their schedules"""
+def seed_routes(cursor):
+    """Seed routes connecting major cities"""
+    # Get station IDs
+    station_ids = {}
+    cursor.execute("SELECT id, station_code FROM stations")
+    for row in cursor.fetchall():
+        station_ids[row[1]] = row[0]
     
-    # Get stations and trains
-    stations = {s.station_code: s for s in Station.query.all()}
-    trains = {t.train_number: t for t in Train.query.all()}
-    
-    # Popular routes
     routes_data = [
-        ("CSMT", "NDLS", 1384),  # Mumbai to Delhi
-        ("NDLS", "HWH", 1447),   # Delhi to Kolkata
-        ("MAS", "NDLS", 2194),   # Chennai to Delhi
-        ("SBC", "NDLS", 2146),   # Bangalore to Delhi
-        ("CSMT", "SBC", 1279),   # Mumbai to Bangalore
-        ("CSMT", "MAS", 1279),   # Mumbai to Chennai
-        ("HYB", "NDLS", 1566),   # Hyderabad to Delhi
-        ("PUNE", "NDLS", 1457),  # Pune to Delhi
-        ("ADI", "NDLS", 934),    # Ahmedabad to Delhi
-        ("JP", "NDLS", 308),     # Jaipur to Delhi
+        (station_ids['BPL'], station_ids['CSMT'], 700),   # Bhopal-Mumbai
+        (station_ids['BPL'], station_ids['NDLS'], 1200),  # Bhopal-Delhi
+        (station_ids['CSMT'], station_ids['NDLS'], 1600), # Mumbai-Delhi
+        (station_ids['NDLS'], station_ids['HWH'], 2300),  # Delhi-Kolkata
+        (station_ids['CSMT'], station_ids['SBC'], 1500),  # Mumbai-Bangalore
+        (station_ids['SBC'], station_ids['MAS'], 350),    # Bangalore-Chennai
+        (station_ids['MAS'], station_ids['HWH'], 1500),   # Chennai-Kolkata
+        (station_ids['HYB'], station_ids['SBC'], 700),    # Hyderabad-Bangalore
+        (station_ids['PUNE'], station_ids['CSMT'], 200),  # Pune-Mumbai
+        (station_ids['JP'], station_ids['NDLS'], 280),    # Jaipur-Delhi
+        (station_ids['NDLS'], station_ids['LKO'], 470),   # Delhi-Lucknow
+        (station_ids['ADI'], station_ids['NDLS'], 900),   # Ahmedabad-Delhi
     ]
     
-    for source_code, dest_code, distance in routes_data:
-        if source_code in stations and dest_code in stations:
-            source = stations[source_code]
-            dest = stations[dest_code]
-            
-            # Check if route exists
-            existing_route = Route.query.filter_by(
-                source_station_id=source.id,
-                destination_station_id=dest.id
-            ).first()
-            
-            if not existing_route:
-                route = Route(
-                    source_station_id=source.id,
-                    destination_station_id=dest.id,
-                    distance_km=distance
-                )
-                db.session.add(route)
-                db.session.flush()  # Get the route ID
-                
-                # Create schedules for this route
-                create_schedules_for_route(route, trains)
+    for source_id, dest_id, distance in routes_data:
+        cursor.execute('''
+            INSERT OR IGNORE INTO routes (source_station_id, destination_station_id, distance_km)
+            VALUES (?, ?, ?)
+        ''', (source_id, dest_id, distance))
     
-    db.session.commit()
-    print("Seeded routes and schedules")
+    print(f"Seeded {len(routes_data)} routes")
 
-def create_schedules_for_route(route, trains):
-    """Create sample schedules for a route"""
+def seed_schedules(cursor):
+    """Seed train schedules"""
+    # Get train and route data
+    trains = {}
+    cursor.execute("SELECT id, train_number FROM trains")
+    for row in cursor.fetchall():
+        trains[row[1]] = row[0]
     
-    # Sample train assignments for routes
-    sample_trains = ["12951", "12302", "12627", "12163", "19037"]
+    routes = []
+    cursor.execute("SELECT id FROM routes")
+    for row in cursor.fetchall():
+        routes.append(row[0])
     
-    for train_number in sample_trains[:3]:  # Limit to 3 trains per route
-        if train_number in trains:
-            train = trains[train_number]
-            
-            # Generate random but realistic timings
-            dep_hour = random.randint(6, 23)
-            dep_minute = random.choice([0, 15, 30, 45])
-            departure_time = time(dep_hour, dep_minute)
-            
-            # Calculate arrival time (add journey duration)
-            journey_hours = random.randint(8, 24)
-            arr_hour = (dep_hour + journey_hours) % 24
-            arrival_time = time(arr_hour, dep_minute)
-            
-            # Set prices based on train type and class
-            base_price = 500 if train.train_type == "Rajdhani" else 300
-            distance_factor = route.distance_km / 1000
-            
-            schedule = Schedule(
-                train_id=train.id,
-                route_id=route.id,
-                departure_time=departure_time,
-                arrival_time=arrival_time,
-                journey_days="Daily",
-                price_ac_1=base_price * 3 * distance_factor if train.has_ac_1 else None,
-                price_ac_2=base_price * 2 * distance_factor if train.has_ac_2 else None,
-                price_ac_3=base_price * 1.5 * distance_factor if train.has_ac_3 else None,
-                price_sleeper=base_price * distance_factor if train.has_sleeper else None,
-                price_chair_car=base_price * 0.8 * distance_factor if train.has_chair_car else None,
-                price_second_sitting=base_price * 0.5 * distance_factor if train.has_second_sitting else None,
-                capacity_ac_1=18 if train.has_ac_1 else 0,
-                capacity_ac_2=46 if train.has_ac_2 else 0,
-                capacity_ac_3=64 if train.has_ac_3 else 0,
-                capacity_sleeper=72 if train.has_sleeper else 0,
-                capacity_chair_car=78 if train.has_chair_car else 0,
-                capacity_second_sitting=108 if train.has_second_sitting else 0
-            )
-            db.session.add(schedule)
+    schedules_data = [
+        (trains['12345'], routes[0], "08:00:00", "18:00:00", "Daily", 2500, 2000, 1500, 800, 1200, 1000),
+        (trains['12456'], routes[1], "22:00:00", "08:00:00", "Daily", 3000, 2400, 1800, 1000, 1400, 1100),
+        (trains['19001'], routes[2], "14:30:00", "22:30:00", "Daily", 1800, 1400, 1100, 600, 900, 700),
+        (trains['12621'], routes[3], "17:45:00", "14:15:00", "Daily", 1200, 900, 700, 400, 600, 500),
+        (trains['12625'], routes[4], "15:00:00", "12:00:00", "Daily", 1500, 1100, 850, 500, 700, 600),
+        (trains['12952'], routes[5], "06:00:00", "22:00:00", "Daily", 2200, 1700, 1300, 700, 1000, 800),
+        (trains['13005'], routes[6], "12:00:00", "08:00:00", "Daily", 1000, 800, 600, 400, 550, 450),
+        (trains['14006'], routes[7], "19:00:00", "09:00:00", "Daily", 1100, 850, 650, 400, 600, 500),
+        (trains['15015'], routes[8], "10:30:00", "20:30:00", "Daily", 800, 700, 600, 350, 500, 400),
+        (trains['12001'], routes[9], "06:15:00", "10:15:00", "Daily", 900, 0, 0, 0, 0, 0),
+    ]
+    
+    for route_idx, (train_id, route_id, dep_time, arr_time, days, p_ac1, p_ac2, p_ac3, p_sleeper, p_chair, p_sitting) in enumerate(schedules_data):
+        if route_idx < len(routes):
+            cursor.execute('''
+                INSERT OR IGNORE INTO schedules 
+                (train_id, route_id, departure_time, arrival_time, journey_days, 
+                 price_ac_1, price_ac_2, price_ac_3, price_sleeper, price_chair_car, price_second_sitting,
+                 capacity_ac_1, capacity_ac_2, capacity_ac_3, capacity_sleeper, capacity_chair_car, capacity_second_sitting)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 20, 30, 40, 50, 60, 70)
+            ''', (train_id, route_id, dep_time, arr_time, days, p_ac1, p_ac2, p_ac3, p_sleeper, p_chair, p_sitting))
+    
+    print(f"Seeded {len(schedules_data)} schedules")
 
-def seed_sample_user():
-    """Create a sample user for testing"""
-    
-    existing_user = User.query.filter_by(username="demo_user").first()
-    if not existing_user:
-        user = User(
-            username="demo_user",
-            email="demo@example.com",
-            irctc_id="DEMO123456",
-            first_name="Demo",
-            last_name="User",
-            phone="9876543210",
-            irctc_verified=True,  # Already verified for demo
-            voice_enabled=True,
-            preferred_language="en-IN"
+def create_tables(cursor):
+    """Create all database tables if they don't exist"""
+    # Users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            voice_enabled BOOLEAN DEFAULT 1,
+            preferred_language TEXT DEFAULT 'en-IN',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_login DATETIME
         )
-        user.set_password("password123")
-        db.session.add(user)
-        db.session.commit()
-        print("Created demo user (username: demo_user, password: password123)")
+    ''')
+    
+    # Stations table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS stations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            station_code TEXT UNIQUE NOT NULL,
+            station_name TEXT NOT NULL,
+            city TEXT NOT NULL,
+            state TEXT NOT NULL,
+            zone TEXT
+        )
+    ''')
+    
+    # Trains table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS trains (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            train_number TEXT UNIQUE NOT NULL,
+            train_name TEXT NOT NULL,
+            train_type TEXT,
+            has_ac_1 BOOLEAN DEFAULT 0,
+            has_ac_2 BOOLEAN DEFAULT 0,
+            has_ac_3 BOOLEAN DEFAULT 0,
+            has_sleeper BOOLEAN DEFAULT 1,
+            has_chair_car BOOLEAN DEFAULT 0,
+            has_second_sitting BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # Routes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS routes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_station_id INTEGER NOT NULL,
+            destination_station_id INTEGER NOT NULL,
+            distance_km INTEGER,
+            FOREIGN KEY (source_station_id) REFERENCES stations (id),
+            FOREIGN KEY (destination_station_id) REFERENCES stations (id)
+        )
+    ''')
+    
+    # Schedules table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            train_id INTEGER NOT NULL,
+            route_id INTEGER NOT NULL,
+            departure_time TEXT NOT NULL,
+            arrival_time TEXT NOT NULL,
+            journey_days TEXT DEFAULT 'Daily',
+            price_ac_1 REAL,
+            price_ac_2 REAL,
+            price_ac_3 REAL,
+            price_sleeper REAL,
+            price_chair_car REAL,
+            price_second_sitting REAL,
+            capacity_ac_1 INTEGER DEFAULT 0,
+            capacity_ac_2 INTEGER DEFAULT 0,
+            capacity_ac_3 INTEGER DEFAULT 0,
+            capacity_sleeper INTEGER DEFAULT 0,
+            capacity_chair_car INTEGER DEFAULT 0,
+            capacity_second_sitting INTEGER DEFAULT 0,
+            FOREIGN KEY (train_id) REFERENCES trains (id),
+            FOREIGN KEY (route_id) REFERENCES routes (id)
+        )
+    ''')
+    
+    # Bookings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pnr_number TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            schedule_id INTEGER NOT NULL,
+            travel_date DATE NOT NULL,
+            train_class TEXT NOT NULL,
+            passenger_name TEXT NOT NULL,
+            passenger_age INTEGER NOT NULL,
+            passenger_gender TEXT NOT NULL,
+            total_amount REAL NOT NULL,
+            booking_status TEXT DEFAULT 'pending',
+            waiting_list_number INTEGER,
+            payment_id TEXT,
+            payment_status TEXT DEFAULT 'pending',
+            payment_method TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            confirmed_at DATETIME,
+            cancelled_at DATETIME,
+            booked_via_voice BOOLEAN DEFAULT 0,
+            voice_session_id TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (schedule_id) REFERENCES schedules (id)
+        )
+    ''')
+
+def main():
+    print(f"Initializing database: {DATABASE}")
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    
+    # Ensure tables exist
+    create_tables(cursor)
+    
+    # Seed data
+    seed_stations(cursor)
+    seed_trains(cursor)
+    seed_routes(cursor)
+    seed_schedules(cursor)
+    seed_demo_user(cursor)
+    
+    conn.commit()
+    conn.close()
+    print("Seeding complete.")
 
 if __name__ == "__main__":
-    seed_database()
+    main()

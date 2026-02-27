@@ -239,7 +239,31 @@ class VoiceWidget {
     
     handleAction(action, data) {
         console.log('Action:', action, 'Data:', data);
-        // Can be extended for specific actions like showing train results
+        
+        switch (action) {
+            case 'show_pnr':
+                this.displayPNRStatus(data);
+                break;
+            // Add other actions here
+        }
+    }
+    
+    displayPNRStatus(data) {
+        const html = `
+            <div class="card mt-2 border-primary shadow-sm">
+                <div class="card-header bg-primary text-white py-1 px-2 small">
+                    <i class="fas fa-ticket-alt me-1"></i>PNR Check Result
+                </div>
+                <div class="card-body p-2 small">
+                    <p class="mb-1"><strong>PNR:</strong> ${data.pnr_number}</p>
+                    <p class="mb-1"><strong>Passenger:</strong> ${data.passenger_name}</p>
+                    <p class="mb-1"><strong>Train:</strong> ${data.train_name}</p>
+                    <p class="mb-1"><strong>Status:</strong> <span class="badge bg-success">${data.booking_status}</span></p>
+                    <p class="mb-0"><strong>Journey:</strong> ${data.source} to ${data.destination}</p>
+                </div>
+            </div>
+        `;
+        this.responseDisplay.innerHTML += html;
     }
     
     showInitialGreeting() {
