@@ -141,17 +141,134 @@ def seed_schedules(cursor):
     
     print(f"Seeded {len(schedules_data)} schedules")
 
+def create_tables(cursor):
+    """Create all database tables if they don't exist"""
+    # Users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            voice_enabled BOOLEAN DEFAULT 1,
+            preferred_language TEXT DEFAULT 'en-IN',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_login DATETIME
+        )
+    ''')
+    
+    # Stations table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS stations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            station_code TEXT UNIQUE NOT NULL,
+            station_name TEXT NOT NULL,
+            city TEXT NOT NULL,
+            state TEXT NOT NULL,
+            zone TEXT
+        )
+    ''')
+    
+    # Trains table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS trains (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            train_number TEXT UNIQUE NOT NULL,
+            train_name TEXT NOT NULL,
+            train_type TEXT,
+            has_ac_1 BOOLEAN DEFAULT 0,
+            has_ac_2 BOOLEAN DEFAULT 0,
+            has_ac_3 BOOLEAN DEFAULT 0,
+            has_sleeper BOOLEAN DEFAULT 1,
+            has_chair_car BOOLEAN DEFAULT 0,
+            has_second_sitting BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # Routes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS routes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_station_id INTEGER NOT NULL,
+            destination_station_id INTEGER NOT NULL,
+            distance_km INTEGER,
+            FOREIGN KEY (source_station_id) REFERENCES stations (id),
+            FOREIGN KEY (destination_station_id) REFERENCES stations (id)
+        )
+    ''')
+    
+    # Schedules table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            train_id INTEGER NOT NULL,
+            route_id INTEGER NOT NULL,
+            departure_time TEXT NOT NULL,
+            arrival_time TEXT NOT NULL,
+            journey_days TEXT DEFAULT 'Daily',
+            price_ac_1 REAL,
+            price_ac_2 REAL,
+            price_ac_3 REAL,
+            price_sleeper REAL,
+            price_chair_car REAL,
+            price_second_sitting REAL,
+            capacity_ac_1 INTEGER DEFAULT 0,
+            capacity_ac_2 INTEGER DEFAULT 0,
+            capacity_ac_3 INTEGER DEFAULT 0,
+            capacity_sleeper INTEGER DEFAULT 0,
+            capacity_chair_car INTEGER DEFAULT 0,
+            capacity_second_sitting INTEGER DEFAULT 0,
+            FOREIGN KEY (train_id) REFERENCES trains (id),
+            FOREIGN KEY (route_id) REFERENCES routes (id)
+        )
+    ''')
+    
+    # Bookings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pnr_number TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            schedule_id INTEGER NOT NULL,
+            travel_date DATE NOT NULL,
+            train_class TEXT NOT NULL,
+            passenger_name TEXT NOT NULL,
+            passenger_age INTEGER NOT NULL,
+            passenger_gender TEXT NOT NULL,
+            total_amount REAL NOT NULL,
+            booking_status TEXT DEFAULT 'pending',
+            waiting_list_number INTEGER,
+            payment_id TEXT,
+            payment_status TEXT DEFAULT 'pending',
+            payment_method TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            confirmed_at DATETIME,
+            cancelled_at DATETIME,
+            booked_via_voice BOOLEAN DEFAULT 0,
+            voice_session_id TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (schedule_id) REFERENCES schedules (id)
+        )
+    ''')
+
 def main():
-    if not os.path.exists(DATABASE):
-        print("Database does not exist. Please run the app once to initialize the schema.")
-        return
+    print(f"Initializing database: {DATABASE}")
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
+    
+    # Ensure tables exist
+    create_tables(cursor)
+    
+    # Seed data
     seed_stations(cursor)
     seed_trains(cursor)
     seed_routes(cursor)
     seed_schedules(cursor)
     seed_demo_user(cursor)
+    
     conn.commit()
     conn.close()
     print("Seeding complete.")

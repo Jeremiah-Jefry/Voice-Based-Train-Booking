@@ -6,7 +6,7 @@ Replaces the existing routes.py with improved context awareness and personalizat
 from flask import render_template, request, jsonify, session, redirect, url_for
 from flask_login import login_required, current_user
 from app.voice import bp
-from app.database import search_trains, find_stations, get_booking_by_pnr, get_user_bookings
+from app.database import search_trains, find_stations, get_booking_by_pnr, get_user_bookings, create_booking
 from datetime import datetime, timedelta
 import re
 import json
@@ -110,7 +110,7 @@ def parse_command_with_context(command, voice_session, user):
 
     # Priority 2: Active Multi-step Flows
     if voice_session.get('booking_in_progress'):
-        return handle_booking_details_collection(command, voice_session)
+        return handle_booking_details_collection(command, voice_session, user)
 
     state = voice_session.get('state')
     
@@ -195,7 +195,7 @@ def handle_start_booking(train_index, voice_session):
     return {'response': response, 'speak': speak}
 
 
-def handle_booking_details_collection(command, voice_session):
+def handle_booking_details_collection(command, voice_session, user):
     """Guide user through multi-step details for booking"""
     booking = voice_session['booking_in_progress']
     stage = booking['stage']
@@ -223,13 +223,69 @@ def handle_booking_details_collection(command, voice_session):
     elif stage == 'collect_gender':
         gender = 'Male' if 'male' in command else 'Female' if 'female' in command else 'Other'
         collected['gender'] = gender
-        voice_session['booking_in_progress'] = None # End for now or add more steps
+        booking['stage'] = 'confirm_booking'
+        
+        # Summary for VUI
+        summary = f"{booking['train']['train_name']} for {collected['name']}, age {collected['age']}."
         return {
-            'response': f"✓ Booking Summary: **{booking['train']['train_name']}** for **{collected['name']}**.\n\nType **Book** on the site to finish.",
-            'speak': f"Ok, I have saved your details for {booking['train']['train_name']}. You can finish booking on the website."
+            'response': f"✓ **Confirm Booking Details**:\n\n• Train: **{booking['train']['train_name']}**\n• Passenger: **{collected['name']}**\n• Age: **{collected['age']}**\n• Gender: **{collected['gender']}**\n\nShall I proceed with the booking? Say **Yes** or **No**.",
+            'speak': f"I have your details. Booking {summary}. Shall I proceed with the booking?"
         }
     
+    elif stage == 'confirm_booking':
+        if any(w in command for w in ['yes', 'yeah', 'sure', 'proceed', 'go ahead', 'confirm']):
+            return complete_booking(voice_session, user)
+        else:
+            voice_session['booking_in_progress'] = None
+            return {'response': "Booking aborted. How else can I help?", 'speak': "Ok, I have aborted the booking. What else can I do?"}
+    
     return {'response': "I didn't quite get that.", 'speak': "Sorry, please repeat that."}
+
+
+def complete_booking(voice_session, user):
+    """Create the booking in database and return VUI success"""
+    booking = voice_session.get('booking_in_progress')
+    if not booking:
+        return {'response': "Something went wrong.", 'speak': "Sorry, something went wrong with the booking."}
+    
+    train = booking['train']
+    collected = booking['collected']
+    
+    try:
+        # Final confirmation and DB insertion
+        result = create_booking(
+            user_id=user.id,
+            schedule_id=train.get('schedule_id'),
+            passenger_name=collected['name'],
+            passenger_age=collected['age'],
+            passenger_gender=collected['gender'],
+            passenger_phone=user.phone,
+            travel_class='sleeper', # Default for voice
+            travel_date=datetime.now().strftime('%Y-%m-%d')
+        )
+        
+        if result:
+            pnr = result.get('pnr', 'N/A')
+            voice_session['booking_in_progress'] = None
+            voice_session['trains_available'] = [] # Clear search
+            
+            response = f"🎉 **CONGRATULATIONS!**\n\nYour ticket for **{train['train_name']}** is booked.\n✅ **PNR:** {pnr}\n✅ **Seat:** {result.get('seat_number')} (Sleeper)\n\nHave a great journey! 🚂"
+            speak = f"Congratulations! Your ticket is booked. Your PNR is {pnr}. Have a great journey!"
+            
+            return {
+                'response': response,
+                'speak': speak,
+                'action': 'booking_complete',
+                'data': result
+            }
+        else:
+            voice_session['booking_in_progress'] = None
+            return {'response': "Booking failed. Please try again later.", 'speak': "I am sorry, the booking failed. Please try again later."}
+            
+    except Exception as e:
+        print(f"[VOICE BOOKING ERROR] {e}")
+        voice_session['booking_in_progress'] = None
+        return {'response': f"Error: {str(e)}", 'speak': "I encountered an error while booking. Please try again."}
 
 
 def handle_cancel_booking(command, voice_session, user):
