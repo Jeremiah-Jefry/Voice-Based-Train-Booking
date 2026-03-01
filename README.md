@@ -1,35 +1,35 @@
-# 🚂 Voice Train Booking Platform
+# Voice Train Booking Platform
 
 A revolutionary train ticket booking platform that enables users to search for trains, check PNR status, and make bookings using voice commands. Built with Flask, Web Speech API, and integrated with secure authentication.
 
-## ✨ Features
+##  Features
 
-### 🎤 Voice Interface
+###  Voice Interface
 - **Voice Search**: "Search trains from Mumbai to Delhi tomorrow"
 - **PNR Status**: "Check PNR status 1234567890" 
 - **Booking History**: "Show my booking history"
 - **Multi-language Support**: English (Indian), Hindi support planned
 
-### 🔐 Authentication & Security
+###  Authentication & Security
 - Secure username-based authentication system
 - Secure password handling with bcrypt
 - Session management with timeouts
 - CSRF protection for all forms
 
-### 🚆 Train Booking Features
+###  Train Booking Features
 - Real-time train search between stations
 - Multiple class options (AC 1/2/3, Sleeper, Chair Car)
 - Seat availability with cached inventory updates
 - PNR generation and booking confirmation
 - Booking history and management
 
-### 📱 Responsive Design
+###  Responsive Design
 - Mobile-friendly voice interface
 - Bootstrap 5 responsive design
 - Accessibility features (ARIA labels, keyboard navigation)
 - Visual feedback for voice recognition states
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Backend
 - **Flask** 2.3.3 - Web framework
@@ -49,7 +49,7 @@ A revolutionary train ticket booking platform that enables users to search for t
 - Comprehensive schema for trains, stations, routes, bookings
 - Enum support for booking/seat status
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Python 3.8+
@@ -89,7 +89,7 @@ python run.py
    - "Check PNR status 1234567890"
    - "Show my booking history"
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 train/
@@ -126,7 +126,7 @@ train/
 └── README.md
 ```
 
-## 🗃️ Database Schema
+##  Database Schema
 
 ### Core Models
 - **User**: User authentication, voice preferences
@@ -143,7 +143,7 @@ train/
 - Cached inventory with reservation timeouts
 - Voice session tracking for booking workflows
 
-## 🎤 Voice Interface Details
+##  Voice Interface Details
 
 ### Web Speech API Integration
 - **SpeechRecognition**: Continuous listening with interim results
@@ -178,7 +178,7 @@ train/
 "What can you do"
 ```
 
-## ⚙️ Configuration
+##  Configuration
 
 ### Environment Variables
 ```bash
@@ -208,7 +208,7 @@ SEAT_RESERVATION_TIMEOUT = 600   # 10 minutes
 INVENTORY_CACHE_TIMEOUT = 900    # 15 minutes
 ```
 
-## 🔧 Development Guide
+##  Development Guide
 
 ### Adding New Voice Commands
 1. Update regex patterns in `app/voice/routes.py`
@@ -231,7 +231,7 @@ flask db upgrade
 3. Verify fallback behavior for recognition failures
 4. Test accessibility with screen readers
 
-## 🚀 Deployment
+##  Deployment
 
 ### Production Setup
 1. **Environment**: Set `FLASK_ENV=production`
@@ -246,7 +246,7 @@ flask db upgrade
 - **Caching**: Redis for sessions and inventory
 - **CDN**: For static assets and improved performance
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
@@ -255,11 +255,11 @@ flask db upgrade
 5. Push: `git push origin feature-name`
 6. Create a Pull Request
 
-## 📝 License
+##  License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Web Speech API for enabling voice recognition in browsers
 - Bootstrap team for the responsive design framework
